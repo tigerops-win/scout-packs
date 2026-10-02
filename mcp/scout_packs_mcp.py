@@ -14,6 +14,9 @@ Tools:
                 flow for buying a pack. The USDC payment itself is executed by
                 the buying agent's own wallet against the endpoint; this tool
                 never moves funds and never holds keys.
+  lookup_lead — $0.10/lookup. Enrich one company by name or domain; returns
+                the verified contact (email + source URL + provenance) after
+                x402 payment. This is the primary per-call product.
 
 Run:  BASE_URL=http://localhost:8000 .venv/bin/python scout_packs_mcp.py
 """
@@ -185,6 +188,63 @@ def buy_pack(pack: str) -> str:
                  "transactions older than 30 days are rejected.")
     lines.append("")
     lines.append(FULFILLMENT_NOTE)
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def lookup_lead(query: str) -> str:
+    """Look up one verified B2B contact by company name or domain. $0.10 USDC per lookup.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: lookup_lead(query="Acme Corp") or lookup_lead(query="acme.com")"""
+    q = (query or "").strip()
+    if not q:
+        return "Error: query is required. Provide a company name or domain."
+    from urllib.parse import quote_plus
+    res = _get(f"/lookup?query={quote_plus(q)}")
+    if res["ok"]:
+        # Should not happen (lookup always 402s on match, 404 on no-match)
+        return f"Unexpected response: {res['data']}"
+    if res["status"] == 404:
+        body = res["data"]
+        return "\n".join([
+            "# lookup_lead — no match",
+            f"No verified contact found for '{q}' in the current database.",
+            f"Database: 100+ verified B2B leads and growing.",
+            "Try a different company name or domain.",
+        ])
+    if res["status"] != 402:
+        return "\n".join([
+            "# lookup_lead failed",
+            f"Endpoint error: {res['data'].get('error', 'unknown')} (HTTP {res['status']}).",
+            f"Endpoint: {BASE_URL}. No payment should be attempted.",
+        ])
+    body = res["data"]
+    lines = [f"# Lead lookup: '{q}'", ""]
+    lines.append(f"Price: ${body.get('price_usd', 0.10)} {body.get('currency', 'USDC')} "
+                 f"on {body.get('network', 'eip155:8453')}")
+    lines.append("")
+    accepts = (body.get("x402", {}) or {}).get("accepts", [{}])[0]
+    pay_to = accepts.get("payTo", "")
+    amount_raw = accepts.get("maxAmountRequired", "100000")
+    try:
+        amount_usdc = int(amount_raw) / 1_000_000
+    except (TypeError, ValueError):
+        amount_usdc = 0.10
+    zero = "0x0000000000000000000000000000000000000000"
+    if not pay_to or pay_to.lower() == zero:
+        lines.append("SALES PAUSED. Do NOT send funds.")
+        return "\n".join(lines)
+    lines.append("## What your agent must do")
+    lines.append(f"1. Send exactly ${amount_usdc:.2f} USDC on Base to:")
+    lines.append(f"   {pay_to}")
+    lines.append(f"   Asset: {accepts.get('asset', '')}")
+    lines.append("2. Wait for confirmation, then POST:")
+    lines.append(f"   POST {BASE_URL}/fulfill-lookup")
+    lines.append(f'   Body: {{"tx_hash": "0x...", "query": "{q}"}}')
+    lines.append("3. Receive the verified contact (company, location, category, "
+                 "verified email, source URL + provenance).")
+    lines.append("")
+    lines.append("Payment is verified on-chain; tx hashes are single-use.")
     return "\n".join(lines)
 
 
