@@ -1,7 +1,7 @@
 {
   "pack": "scout-pack-25",
   "seller": "Tiger Operations",
-  "lead_count": 102,
+  "lead_count": 252,
   "price_usd": 9,
   "verified": "2026-10-02",
   "verification_method": "published business email; verified against business site/listing. No guessed or role-based catch-all addresses.",
@@ -928,6 +928,1356 @@
       "category": "insurance",
       "contact_email": "carlosinstn@gmail.com",
       "source_url": "https://www.whofish.org/business/Knoxville/TN/Carlos_Insurance/311241.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "TeamScaler",
+      "city_state": "New York, NY",
+      "category": "it-services",
+      "contact_email": "hello@teamscaler.com",
+      "source_url": "http://clutch.co/profile/teamscaler",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "LK TECH",
+      "city_state": "Cincinnati, OH",
+      "category": "it-services",
+      "contact_email": "hello@lktechnologies.com",
+      "source_url": "https://www.n49.com/biz/5983891/lk-tech-cincinnati-managed-it-services-company-oh-cincinnati-2520-harris-ave/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "NEWMEDIA.COM",
+      "city_state": "Austin, TX",
+      "category": "digital-marketing",
+      "contact_email": "info@newmedia.com",
+      "source_url": "https://newmedia.com/austin-digital-marketing-agency",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "AOR",
+      "city_state": "Denver, CO",
+      "category": "digital-marketing",
+      "contact_email": "hello@thinkaor.com",
+      "source_url": "https://www.thinkaor.com/insights/five-questions-to-ask-a-digital-marketing-agency/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Violet PR",
+      "city_state": "New York, NY",
+      "category": "pr-firm",
+      "contact_email": "hello@violetpr.com",
+      "source_url": "https://violetpr.com/violet-pr-unveils-new-identity-we-write-the-future/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "FUZE",
+      "city_state": "Miami, FL",
+      "category": "digital-marketing",
+      "contact_email": "hello@fuzeinc.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Web Design Phoenix",
+      "city_state": "Phoenix, AZ",
+      "category": "web-development",
+      "contact_email": "info@webdesign-phoenix.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Webociti",
+      "city_state": "Atlanta, GA",
+      "category": "digital-marketing",
+      "contact_email": "info@webociti.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Newman Web Solutions",
+      "city_state": "Atlanta, GA",
+      "category": "digital-marketing",
+      "contact_email": "info@newmanwebsolutions.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Brenton Way",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "sales@brentonway.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "97 Switch",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "info@97switch.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Comrade Digital Marketing",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "info@comradeweb.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Color Jar",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "hello@colorjar.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Pixelette Technologies",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "sales@pixelettetech.co.uk",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "CDM Media",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "inquiry@cdmmedia.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Catalyst Digital Marketing",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "info@catalystdigital.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Social Driver",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "hello@socialdriver.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Solid Digital",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "hello@soliddigital.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Brafton",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "info@brafton.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Mabbly",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "hello@mabbly.com",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Effective Marketing",
+      "city_state": "Chicago, IL",
+      "category": "digital-marketing",
+      "contact_email": "uri@effectivemarketing.co.il",
+      "source_url": "https://brentonway.com/blog/best-digital-marketing-agencies-in-chicago",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Digital Practice Growth",
+      "city_state": "Denver, CO",
+      "category": "digital-marketing",
+      "contact_email": "hello@digitalpracticegrowth.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Volume Nine",
+      "city_state": "Denver, CO",
+      "category": "digital-marketing",
+      "contact_email": "info@v9digital.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "SEOM Interactive",
+      "city_state": "Trevose, PA",
+      "category": "digital-marketing",
+      "contact_email": "info@seominteractive.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Wingtip Communications",
+      "city_state": "Danville, CA",
+      "category": "pr-firm",
+      "contact_email": "info@wingtip-online.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Peaks Digital Marketing",
+      "city_state": "Denver, CO",
+      "category": "digital-marketing",
+      "contact_email": "info@peaksdigitalmarketing.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Hyperlinks Media",
+      "city_state": "Houston, TX",
+      "category": "digital-marketing",
+      "contact_email": "info@hyperlinksmedia.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Magik Digital",
+      "city_state": "Fort Worth, TX",
+      "category": "digital-marketing",
+      "contact_email": "info@magikdigital.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Strategix Design",
+      "city_state": "Albany, NY",
+      "category": "web-development",
+      "contact_email": "inquire@strategixdesign.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "LiveWebMedia",
+      "city_state": "Los Angeles, CA",
+      "category": "digital-marketing",
+      "contact_email": "info@livewebmedia.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Antenna Group",
+      "city_state": "New York, NY",
+      "category": "pr-firm",
+      "contact_email": "info@antennagroup.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Periscope Group",
+      "city_state": "Danville, CA",
+      "category": "pr-firm",
+      "contact_email": "info@periscopegroup.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Hive80",
+      "city_state": "Danville, CA",
+      "category": "pr-firm",
+      "contact_email": "info@hive80.com",
+      "source_url": "https://designdrizzle.com/best-digital-marketing-agencies-of-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "A-listware",
+      "city_state": "North Bergen, NJ",
+      "category": "it-services",
+      "contact_email": "info@a-listware.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-enterpriseone-managed-services-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "ERP Suites",
+      "city_state": "Loveland, OH",
+      "category": "it-services",
+      "contact_email": "sales@erpsuites.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-enterpriseone-managed-services-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "RST Solutions",
+      "city_state": "Malvern, PA",
+      "category": "it-services",
+      "contact_email": "info@rstsolutions.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-enterpriseone-managed-services-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Enterprise Technologies",
+      "city_state": "Orange, CA",
+      "category": "it-services",
+      "contact_email": "info@enterprisetechnologies.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-enterpriseone-managed-services-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Syntax",
+      "city_state": "Morrisville, NC",
+      "category": "it-services",
+      "contact_email": "hello@syntax.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-enterpriseone-managed-services-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Epiq Infotech",
+      "city_state": "Cerritos, CA",
+      "category": "it-services",
+      "contact_email": "sales@epiqinfo.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-enterpriseone-managed-services-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Groupe conseil Era",
+      "city_state": "Dover, DE",
+      "category": "it-services",
+      "contact_email": "info@group-era.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-enterpriseone-managed-services-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Terillium",
+      "city_state": "Cincinnati, OH",
+      "category": "it-services",
+      "contact_email": "info@terillium.com",
+      "source_url": "https://a-listware.com/blog/erp-jd-edwards-managed-services-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Spinnaker Support",
+      "city_state": "Greenwood Village, CO",
+      "category": "it-services",
+      "contact_email": "info@spinnakersupport.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-managed-services-provider-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Denovo",
+      "city_state": "Louisville, CO",
+      "category": "it-services",
+      "contact_email": "sales@denovo-us.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-managed-services-provider-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "GSI",
+      "city_state": "Atlanta, GA",
+      "category": "it-services",
+      "contact_email": "sales@getgsi.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-managed-services-provider-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Circular Edge",
+      "city_state": "Somerset, NJ",
+      "category": "it-services",
+      "contact_email": "salesmarketing@circularedge.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-managed-services-provider-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Chetu",
+      "city_state": "Sunrise, FL",
+      "category": "it-services",
+      "contact_email": "sales@chetu.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-managed-services-provider-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Redfaire International",
+      "city_state": "Wilmington, DE",
+      "category": "it-services",
+      "contact_email": "info@redfaire.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-managed-services-provider-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Datanational Corporation",
+      "city_state": "Farmington Hills, MI",
+      "category": "it-services",
+      "contact_email": "sales@datanat.com",
+      "source_url": "https://a-listware.com/blog/jd-edwards-managed-services-provider-companies-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "atQor",
+      "city_state": "Santa Fe Springs, CA",
+      "category": "it-services",
+      "contact_email": "info@atqor.com",
+      "source_url": "https://a-listware.com/blog/managed-cloud-services-companies-in-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "WheelHouse IT",
+      "city_state": "Fort Lauderdale, FL",
+      "category": "it-services",
+      "contact_email": "sales@wheelhouseit.com",
+      "source_url": "https://a-listware.com/blog/managed-cloud-services-companies-in-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Telstra International",
+      "city_state": "New York, NY",
+      "category": "it-services",
+      "contact_email": "gsd@team.telstra.com",
+      "source_url": "https://a-listware.com/blog/managed-cloud-services-companies-in-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Claranet",
+      "city_state": "San Francisco, CA",
+      "category": "it-services",
+      "contact_email": "ch-info@claranet.com",
+      "source_url": "https://a-listware.com/blog/managed-cloud-services-companies-in-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Ntiva",
+      "city_state": "McLean, VA",
+      "category": "it-services",
+      "contact_email": "info@ntiva.com",
+      "source_url": "https://a-listware.com/blog/managed-cloud-services-companies-in-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Cloud4C",
+      "city_state": "Lewes, DE",
+      "category": "it-services",
+      "contact_email": "usa@cloud4c.com",
+      "source_url": "https://a-listware.com/blog/managed-cloud-services-companies-in-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Cardonet",
+      "city_state": "West Hollywood, CA",
+      "category": "it-services",
+      "contact_email": "hello@cardonet.com",
+      "source_url": "https://a-listware.com/blog/managed-cloud-services-companies-in-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Kyndryl",
+      "city_state": "New York, NY",
+      "category": "it-services",
+      "contact_email": "inquiry@kyndryl.com",
+      "source_url": "https://a-listware.com/blog/managed-cloud-services-companies-in-usa",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "PopArt Studio",
+      "city_state": "Chicago, IL",
+      "category": "web-development",
+      "contact_email": "chicago@popwebdesign.net",
+      "source_url": "https://designdrizzle.com/best-web-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Archer Software",
+      "city_state": "New York, NY",
+      "category": "web-development",
+      "contact_email": "info@archer-soft.com",
+      "source_url": "https://designdrizzle.com/best-web-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Naossoft",
+      "city_state": "Miami, FL",
+      "category": "web-development",
+      "contact_email": "help@naossoft.com",
+      "source_url": "https://designdrizzle.com/best-web-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Red Banyan",
+      "city_state": "Fort Lauderdale, FL",
+      "category": "pr-firm",
+      "contact_email": "rb-pr@redbanyan.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "AceIt Agency",
+      "city_state": "Austin, TX",
+      "category": "pr-firm",
+      "contact_email": "hello@aceitagency.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Lawlor Media Group",
+      "city_state": "New York, NY",
+      "category": "pr-firm",
+      "contact_email": "info@lawlormediagroup.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Beantown Media Ventures",
+      "city_state": "Boston, MA",
+      "category": "pr-firm",
+      "contact_email": "hello@beantownmv.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Berkeley Communications",
+      "city_state": "New York, NY",
+      "category": "pr-firm",
+      "contact_email": "enquiries@berkeleypr.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "DISRUPT PR",
+      "city_state": "Austin, TX",
+      "category": "pr-firm",
+      "contact_email": "info@disruptpr.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Avaans Media PR",
+      "city_state": "Los Angeles, CA",
+      "category": "pr-firm",
+      "contact_email": "info@avaansmedia.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Wise Collective",
+      "city_state": "New York, NY",
+      "category": "pr-firm",
+      "contact_email": "bizdev@wisecollective.co",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Si14 Global Communications",
+      "city_state": "Los Angeles, CA",
+      "category": "pr-firm",
+      "contact_email": "contact@si14global.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Visionary Ventures Collective",
+      "city_state": "Manchester, NH",
+      "category": "pr-firm",
+      "contact_email": "info@vvcpr.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Hundred Stories",
+      "city_state": "New York, NY",
+      "category": "pr-firm",
+      "contact_email": "robin@hundredstoriespr.com",
+      "source_url": "https://designdrizzle.com/top-pr-agencies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Tenderling",
+      "city_state": "Austin, TX",
+      "category": "branding",
+      "contact_email": "hello@tenderling.com",
+      "source_url": "https://designdrizzle.com/best-brand-strategy-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Lion's Share Digital",
+      "city_state": "Austin, TX",
+      "category": "branding",
+      "contact_email": "sales@lionssharedigital.com",
+      "source_url": "https://designdrizzle.com/best-brand-strategy-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Rojo 032",
+      "city_state": "San Antonio, TX",
+      "category": "branding",
+      "contact_email": "hello@rojo032.com",
+      "source_url": "https://designdrizzle.com/best-brand-strategy-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Olive & Company",
+      "city_state": "Minneapolis, MN",
+      "category": "branding",
+      "contact_email": "info@oliveandcompany.com",
+      "source_url": "https://designdrizzle.com/best-brand-strategy-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "AD.JUST",
+      "city_state": "Los Angeles, CA",
+      "category": "branding",
+      "contact_email": "getquote@adjustproduction.com",
+      "source_url": "https://designdrizzle.com/best-brand-strategy-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "HTMLPanda",
+      "city_state": "Boston, MA",
+      "category": "web-development",
+      "contact_email": "sales@htmlpanda.com",
+      "source_url": "http://designdrizzle.com/top-wordpress-developers/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "PSD2HTML",
+      "city_state": "San Francisco, CA",
+      "category": "web-development",
+      "contact_email": "contact@p2h.com",
+      "source_url": "http://designdrizzle.com/top-wordpress-developers/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "CGColors",
+      "city_state": "New York, NY",
+      "category": "web-development",
+      "contact_email": "hi@cgcolors.com",
+      "source_url": "http://designdrizzle.com/top-wordpress-developers/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Webential",
+      "city_state": "Foster City, CA",
+      "category": "web-development",
+      "contact_email": "hello@webential.com",
+      "source_url": "http://designdrizzle.com/top-wordpress-developers/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Four V",
+      "city_state": "Huntington, WV",
+      "category": "web-development",
+      "contact_email": "russell@fourvllc.com",
+      "source_url": "https://designdrizzle.com/best-web-designing-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "More By Us",
+      "city_state": "New York, NY",
+      "category": "web-development",
+      "contact_email": "hello@moreby.us",
+      "source_url": "https://designdrizzle.com/best-web-designing-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Cyboticx",
+      "city_state": "Austin, TX",
+      "category": "web-development",
+      "contact_email": "hello@cyboticx.com",
+      "source_url": "https://designdrizzle.com/best-web-designing-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Southtown Web Designs",
+      "city_state": "San Antonio, TX",
+      "category": "web-development",
+      "contact_email": "michael@southtowndesigns.com",
+      "source_url": "https://designdrizzle.com/best-web-designing-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Dirigo Digital",
+      "city_state": "Palmyra, ME",
+      "category": "web-development",
+      "contact_email": "info@dirigo.digital",
+      "source_url": "https://designdrizzle.com/best-web-designing-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "EVOLVS",
+      "city_state": "Athens, GA",
+      "category": "web-development",
+      "contact_email": "hello@evolvs.com",
+      "source_url": "https://designdrizzle.com/best-web-designing-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "A3logics",
+      "city_state": "Carlsbad, CA",
+      "category": "web-development",
+      "contact_email": "scarlett@a3logics.in",
+      "source_url": "https://designdrizzle.com/best-php-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "The Coder",
+      "city_state": "San Mateo, CA",
+      "category": "web-development",
+      "contact_email": "info@thecoderdev.com",
+      "source_url": "https://designdrizzle.com/best-php-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "IronGlove Studio",
+      "city_state": "Oregon City, OR",
+      "category": "web-development",
+      "contact_email": "contact@ironglove.studio",
+      "source_url": "https://designdrizzle.com/top-woocommerce-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "FluidRank",
+      "city_state": "Atlanta, GA",
+      "category": "web-development",
+      "contact_email": "info@fluidrank.com",
+      "source_url": "https://designdrizzle.com/top-woocommerce-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Once Click SEO",
+      "city_state": "New Orleans, LA",
+      "category": "digital-marketing",
+      "contact_email": "info@oneclickseo.com",
+      "source_url": "https://designdrizzle.com/best-social-media-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Big Mouth Marketing",
+      "city_state": "Salt Lake City, UT",
+      "category": "digital-marketing",
+      "contact_email": "maxwell@bigmouth.agency",
+      "source_url": "https://designdrizzle.com/best-social-media-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Blue Bear Creative",
+      "city_state": "Denver, CO",
+      "category": "digital-marketing",
+      "contact_email": "info@bluebearcreative.co",
+      "source_url": "https://designdrizzle.com/best-social-media-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Milia Marketing",
+      "city_state": "Twinsburg, OH",
+      "category": "digital-marketing",
+      "contact_email": "info@miliamarketing.com",
+      "source_url": "https://designdrizzle.com/best-social-media-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Marcher Internet Marketing",
+      "city_state": "San Diego, CA",
+      "category": "digital-marketing",
+      "contact_email": "marketing@marcherseo.com",
+      "source_url": "https://designdrizzle.com/best-social-media-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "From The Future",
+      "city_state": "Philadelphia, PA",
+      "category": "digital-marketing",
+      "contact_email": "hello@imfromthefuture.com",
+      "source_url": "https://designdrizzle.com/best-social-media-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Jane Owen PR",
+      "city_state": "West Hollywood, CA",
+      "category": "pr-firm",
+      "contact_email": "jane@janeowenpr.com",
+      "source_url": "https://designdrizzle.com/best-pr-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Society22 PR",
+      "city_state": "Los Angeles, CA",
+      "category": "pr-firm",
+      "contact_email": "press@society22pr.com",
+      "source_url": "https://designdrizzle.com/best-pr-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "NRPR Group",
+      "city_state": "Beverly Hills, CA",
+      "category": "pr-firm",
+      "contact_email": "info@nrprgroup.com",
+      "source_url": "https://designdrizzle.com/best-pr-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "G8 Strategies",
+      "city_state": "Reno, NV",
+      "category": "pr-firm",
+      "contact_email": "info@g8strategies.com",
+      "source_url": "https://designdrizzle.com/best-pr-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Reputation Management Consultants",
+      "city_state": "Irvine, CA",
+      "category": "pr-firm",
+      "contact_email": "info@reputationmanagementconsultants.com",
+      "source_url": "https://designdrizzle.com/best-online-reputation-management-companies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Erase",
+      "city_state": "Miami, FL",
+      "category": "pr-firm",
+      "contact_email": "sales@erase.com",
+      "source_url": "https://designdrizzle.com/best-online-reputation-management-companies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Boardroom PR",
+      "city_state": "Miami, FL",
+      "category": "pr-firm",
+      "contact_email": "support@boardroompr.com",
+      "source_url": "https://designdrizzle.com/best-online-reputation-management-companies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Go Fish Digital",
+      "city_state": "Raleigh, NC",
+      "category": "digital-marketing",
+      "contact_email": "info@gofishdigital.com",
+      "source_url": "https://designdrizzle.com/best-online-reputation-management-companies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Borenstein Group",
+      "city_state": "Vienna, VA",
+      "category": "pr-firm",
+      "contact_email": "contactus@borensteingroup.com",
+      "source_url": "https://designdrizzle.com/best-online-reputation-management-companies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Actual Agency",
+      "city_state": "San Francisco, CA",
+      "category": "pr-firm",
+      "contact_email": "hello@actual.agency",
+      "source_url": "https://designdrizzle.com/best-online-reputation-management-companies-in-the-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Affitor",
+      "city_state": "San Francisco, CA",
+      "category": "saas",
+      "contact_email": "hello@affitor.com",
+      "source_url": "https://github.com/affitor/affitor-docs/blob/HEAD/content/docs/support/contact.mdx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Russell Consulting, LLC",
+      "city_state": "Virginia Beach, VA",
+      "category": "business-consulting",
+      "contact_email": "chuck@russellbcs.com",
+      "source_url": "https://www.n49.com/biz/4928826/russell-consulting-llc-va-virginia-beach-1432-north-great-neck-road-suite-202a/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "David Hernandez, CPA, PA",
+      "city_state": "Coral Gables, FL",
+      "category": "business-consulting",
+      "contact_email": "david@dhernandezcpa.com",
+      "source_url": "https://www.n49.com/biz/5912456/david-hernandez-cpa-pa-fl-coral-gables-770-south-dixie-highway/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Anne Napolitano Consulting, Inc.",
+      "city_state": "Melville, NY",
+      "category": "business-consulting",
+      "contact_email": "anne@napacct.com",
+      "source_url": "https://www.n49.com/biz/5489487/anne-napolitano-consulting-inc-business-accounting-advisory-services-ny-melville-25-melville-park-road/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Advisors Management Group",
+      "city_state": "La Crosse, WI",
+      "category": "business-consulting",
+      "contact_email": "amgi@amgteam.com",
+      "source_url": "https://www.n49.com/biz/2341777/advisors-management-group-wi-la-crosse-505-king-street/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "CFO For Hire, LLC",
+      "city_state": "West Bloomfield, MI",
+      "category": "fractional-executive",
+      "contact_email": "info@cfoforhire.com",
+      "source_url": "https://www.cfoforhire.com/controller-vs-cfo/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Dsquared Media",
+      "city_state": "West Palm Beach, FL",
+      "category": "digital-marketing",
+      "contact_email": "hello@dsquaredmedia.net",
+      "source_url": "https://designdrizzle.com/best-seo-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Illumination Marketing",
+      "city_state": "Houston, TX",
+      "category": "digital-marketing",
+      "contact_email": "info@marketingillumination.com",
+      "source_url": "https://designdrizzle.com/best-seo-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Elite SEO Consulting",
+      "city_state": "Colorado Springs, CO",
+      "category": "digital-marketing",
+      "contact_email": "service@eliteseoconsulting.com",
+      "source_url": "https://designdrizzle.com/best-seo-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Holy City Hosting & Design",
+      "city_state": "Charleston, SC",
+      "category": "digital-marketing",
+      "contact_email": "sales@holycityhosting.com",
+      "source_url": "https://designdrizzle.com/best-seo-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "WebXd",
+      "city_state": "La Jolla, CA",
+      "category": "digital-marketing",
+      "contact_email": "info@webxd.net",
+      "source_url": "https://designdrizzle.com/best-seo-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Realm",
+      "city_state": "Minneapolis, MN",
+      "category": "digital-marketing",
+      "contact_email": "sales@realmwebdesign.com",
+      "source_url": "https://designdrizzle.com/best-seo-companies-usa/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "HigherVisibility",
+      "city_state": "Memphis, TN",
+      "category": "digital-marketing",
+      "contact_email": "info@highervisibility.com",
+      "source_url": "https://designdrizzle.com/best-email-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Budai Media",
+      "city_state": "New York, NY",
+      "category": "digital-marketing",
+      "contact_email": "contact@thebudaimedia.com",
+      "source_url": "https://designdrizzle.com/best-email-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Oasis Optimization",
+      "city_state": "Seattle, WA",
+      "category": "digital-marketing",
+      "contact_email": "adam@oasisoptimization.com",
+      "source_url": "https://designdrizzle.com/best-email-marketing-agencies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Local Fractional",
+      "city_state": "Dallas, TX",
+      "category": "fractional-executive",
+      "contact_email": "info@localfractional.com",
+      "source_url": "https://localfractional.com",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "NicheLabs, LLC",
+      "city_state": "Roswell, GA",
+      "category": "fractional-executive",
+      "contact_email": "sales@nichelabs.com",
+      "source_url": "https://www.nichelabs.com/marketing-counsel/when-you-cant-hire-high-priced-marketing-experts-fractional-cmos-provide-wholesale-value/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "AirFresh Marketing",
+      "city_state": "Denver, CO",
+      "category": "digital-marketing",
+      "contact_email": "hello@airfreshmarketing.com",
+      "source_url": "https://github.com/airfresh-joey/airfresh-marketing-website/blob/HEAD/AFM-Directory-Submission-Plan.md",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Greenice",
+      "city_state": "Austin, TX",
+      "category": "saas",
+      "contact_email": "hello@greenice.net",
+      "source_url": "http://greenice.net/how-to-bootstrap-in-an-saas-startup/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "2nd Watch",
+      "city_state": "Seattle, WA",
+      "category": "it-services",
+      "contact_email": "info@2ndwatch.com",
+      "source_url": "https://designdrizzle.com/best-big-data-analytics-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Informatica",
+      "city_state": "Redwood City, CA",
+      "category": "saas",
+      "contact_email": "support@informatica.com",
+      "source_url": "https://designdrizzle.com/best-big-data-analytics-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "YellowFin",
+      "city_state": "Austin, TX",
+      "category": "saas",
+      "contact_email": "sales.jp@yellowfin.bi",
+      "source_url": "https://designdrizzle.com/best-big-data-analytics-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Mageworx",
+      "city_state": "Minneapolis, MN",
+      "category": "saas",
+      "contact_email": "support@mageworx.com",
+      "source_url": "https://designdrizzle.com/best-magento-developers/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Hire Jordan Smith",
+      "city_state": "Savannah, GA",
+      "category": "web-development",
+      "contact_email": "jordan@hirejordansmith.com",
+      "source_url": "https://designdrizzle.com/best-magento-developers/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Semaphore Mobile",
+      "city_state": "Dallas, TX",
+      "category": "saas",
+      "contact_email": "sales@semaphoremobile.com",
+      "source_url": "https://designdrizzle.com/most-trusted-android-app-development-companies-for-2017/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Flatstack",
+      "city_state": "San Francisco, CA",
+      "category": "saas",
+      "contact_email": "contact@flatstack.com",
+      "source_url": "https://designdrizzle.com/most-trusted-android-app-development-companies-for-2017/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "End Point",
+      "city_state": "New York, NY",
+      "category": "saas",
+      "contact_email": "ask@endpoint.com",
+      "source_url": "https://designdrizzle.com/most-trusted-android-app-development-companies-for-2017/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "7L International",
+      "city_state": "New York, NY",
+      "category": "saas",
+      "contact_email": "contact@7linternational.com",
+      "source_url": "https://designdrizzle.com/most-trusted-android-app-development-companies-for-2017/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "DOIT Software",
+      "city_state": "Boston, MA",
+      "category": "saas",
+      "contact_email": "contact@doit.software",
+      "source_url": "https://designdrizzle.com/most-trusted-android-app-development-companies-for-2017/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Goji Labs",
+      "city_state": "Los Angeles, CA",
+      "category": "saas",
+      "contact_email": "hello@gojilabs.com",
+      "source_url": "https://designdrizzle.com/most-trusted-android-app-development-companies-for-2017/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Novateus",
+      "city_state": "Baton Rouge, LA",
+      "category": "saas",
+      "contact_email": "hello@novateus.com",
+      "source_url": "https://designdrizzle.com/most-trusted-android-app-development-companies-for-2017/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "AppsChopper",
+      "city_state": "New York, NY",
+      "category": "saas",
+      "contact_email": "sales@appschopper.com",
+      "source_url": "https://designdrizzle.com/most-trusted-android-app-development-companies-for-2017/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Massey and Company CPA",
+      "city_state": "Atlanta, GA",
+      "category": "business-consulting",
+      "contact_email": "info@masseyandcompanycpa.com",
+      "source_url": "https://masseyandcompanycpa.com/past-due-tax-returns/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Sidebench",
+      "city_state": "Santa Monica, CA",
+      "category": "saas",
+      "contact_email": "hello@sidebench.com",
+      "source_url": "https://designdrizzle.com/most-trusted-ios-app-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Mobile Programming LLC",
+      "city_state": "New York, NY",
+      "category": "saas",
+      "contact_email": "hello@mobileprogramming.com",
+      "source_url": "https://designdrizzle.com/most-trusted-ios-app-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Armia Systems",
+      "city_state": "Deerfield, IL",
+      "category": "saas",
+      "contact_email": "info@armia.com",
+      "source_url": "https://designdrizzle.com/most-trusted-ios-app-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "tapptitude",
+      "city_state": "Phoenix, AZ",
+      "category": "saas",
+      "contact_email": "hello@tapptitude.com",
+      "source_url": "https://designdrizzle.com/most-trusted-ios-app-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Blue Label Labs",
+      "city_state": "New York, NY",
+      "category": "saas",
+      "contact_email": "contact@bluelabellabs.com",
+      "source_url": "https://designdrizzle.com/most-trusted-ios-app-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "PixelRocket",
+      "city_state": "Austin, TX",
+      "category": "saas",
+      "contact_email": "hello@pixelrocketapps.com",
+      "source_url": "https://designdrizzle.com/most-trusted-ios-app-development-companies/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "PrimaFelicitas",
+      "city_state": "San Francisco, CA",
+      "category": "saas",
+      "contact_email": "hello@primafelicitas.com",
+      "source_url": "https://designdrizzle.com/10-most-trusted-custom-software-development-companies-around-the-world/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Bromin7",
+      "city_state": "New York, NY",
+      "category": "saas",
+      "contact_email": "info@bromin7.com",
+      "source_url": "https://designdrizzle.com/10-most-trusted-custom-software-development-companies-around-the-world/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Azoft",
+      "city_state": "New York, NY",
+      "category": "saas",
+      "contact_email": "info@azoft.com",
+      "source_url": "https://designdrizzle.com/10-most-trusted-custom-software-development-companies-around-the-world/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Sunlight Media",
+      "city_state": "Los Angeles, CA",
+      "category": "saas",
+      "contact_email": "angelo@sunlightmedia.org",
+      "source_url": "https://designdrizzle.com/10-most-trusted-custom-software-development-companies-around-the-world/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "MAG-RAW Creations",
+      "city_state": "Dallas, TX",
+      "category": "saas",
+      "contact_email": "admin@mag-raw.com",
+      "source_url": "https://designdrizzle.com/10-most-trusted-custom-software-development-companies-around-the-world/",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Richard I. Fine & Associates",
+      "city_state": "Santa Barbara, CA",
+      "category": "business-consulting",
+      "contact_email": "richardfine@richardfinelaw.com",
+      "source_url": "https://www.n49.com/biz/2694475/richard-i.-fine-&-associates/",
       "verified": "2026-10-02",
       "verification": "published business email; verified against business site/listing"
     }
