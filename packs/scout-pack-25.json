@@ -1,9 +1,9 @@
 {
   "pack": "scout-pack-25",
   "seller": "Tiger Operations",
-  "lead_count": 25,
+  "lead_count": 102,
   "price_usd": 9,
-  "verified": "2026-10-01",
+  "verified": "2026-10-02",
   "verification_method": "published business email; verified against business site/listing. No guessed or role-based catch-all addresses.",
   "fields": [
     "company_name",
@@ -236,6 +236,699 @@
       "contact_email": "copperloybyjhindustries@outlook.com",
       "source_url": "https://www.whofish.org/business/Twinsburg/OH/Copperloy_By_JH_Industries/283385.aspx",
       "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Bill Fry The Plumbing Guy",
+      "city_state": "Lees Summit, MO",
+      "category": "plumbing",
+      "contact_email": "billfrytheplumbingguy@outlook.com",
+      "source_url": "https://www.whofish.org/business/Lees_Summit/MO/Bill_Fry_The_Plumbing_Guy/289816.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Reichelt Plumbing",
+      "city_state": "Schererville, IN",
+      "category": "plumbing",
+      "contact_email": "reichelt.plumbing@outlook.com",
+      "source_url": "https://www.whofish.org/business/Schererville/IN/Reichelt_Plumbing/307966.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Babes Plumbing, Inc. & Fire Sprinklers",
+      "city_state": "Nokomis, FL",
+      "category": "plumbing",
+      "contact_email": "babesplumbing1@outlook.com",
+      "source_url": "https://www.whofish.org/business/Nokomis/FL/Babes_Plumbing_Inc_Fire_Sprinklers/281248.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Local Plumbing Service & Hydrojetting Repair",
+      "city_state": "Brentwood, CA",
+      "category": "plumbing",
+      "contact_email": "repairlocalplumbing@gmail.com",
+      "source_url": "https://www.whofish.org/business/Brentwood/CA/Local_Plumbing_Service_Hydrojetting_Repair/293298.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Thornton Plumbing LLC",
+      "city_state": "Noblesville, IN",
+      "category": "plumbing",
+      "contact_email": "thorntonplumbing96@outlook.com",
+      "source_url": "https://www.whofish.org/business/Noblesville/IN/Thornton_Plumbing_LLC/307923.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Dixon Plumbing Contractors",
+      "city_state": "Darby, PA",
+      "category": "plumbing",
+      "contact_email": "dixonplumbingpa@mail.ee",
+      "source_url": "https://www.whofish.org/business/Darby/PA/Dixon_plumbing_contractors/287160.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Naillon Plumbing",
+      "city_state": "Caldwell, ID",
+      "category": "plumbing",
+      "contact_email": "naillonplumbingus@gmail.com",
+      "source_url": "https://www.whofish.org/business/Caldwell/ID/Naillon_Plumbing/280766.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Beiruti Mediterranean Restaurant",
+      "city_state": "Salem, NH",
+      "category": "restaurant",
+      "contact_email": "beirutimediterranean@gmail.com",
+      "source_url": "https://www.whofish.org/business/Salem/NH/Beiruti_Mediterranean_Restaurant/286066.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Tavern on H",
+      "city_state": "Franksville, WI",
+      "category": "restaurant",
+      "contact_email": "tavernonh@outlook.com",
+      "source_url": "https://www.whofish.org/business/Franksville/WI/Tavern_on_H/303477.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Nuccios Ristorante & Pizza",
+      "city_state": "Boston, MA",
+      "category": "restaurant",
+      "contact_email": "nucciosristorante@mailper.com",
+      "source_url": "https://www.whofish.org/business/Boston/MA/Nuccios_Ristorante_Pizza/348450.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Bombay Sizzler",
+      "city_state": "Irving, TX",
+      "category": "restaurant",
+      "contact_email": "bombaysizzlersirving@outlook.com",
+      "source_url": "https://www.whofish.org/business/Irving/TX/Bombay_Sizzler/299739.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Namaste Grill & Bar Fort Worth",
+      "city_state": "Fort Worth, TX",
+      "category": "restaurant",
+      "contact_email": "namastegrillandbar@onmail.com",
+      "source_url": "https://www.whofish.org/business/Fort_Worth/TX/Namaste_Grill_Bar_Fort_Worth/302023.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "After Hours Electrical, LLC",
+      "city_state": "Southern Pines, NC",
+      "category": "electrician",
+      "contact_email": "afterhourselectrical@businessmailsystem.com",
+      "source_url": "https://www.whofish.org/business/Boston/MA/After_Hours_Electrical_LLC/363585.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "First Class Electric",
+      "city_state": "Old Bridge, NJ",
+      "category": "electrician",
+      "contact_email": "info@firstclasselectricnj.com",
+      "source_url": "https://www.whofish.org/Default.aspx?tabid=1&action=directmail&itemid=287308&panel=loc&rCode=1",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Mercy Electric",
+      "city_state": "South San Francisco, CA",
+      "category": "electrician",
+      "contact_email": "mercyelectrician@outlook.com",
+      "source_url": "https://www.whofish.org/business/South_San_Francisco/CA/Mercy_Electric/280717.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "R & T Yoder Electric, Inc",
+      "city_state": "Hilliard, OH",
+      "category": "electrician",
+      "contact_email": "rtyoderelectric@outlook.com",
+      "source_url": "https://www.whofish.org/business/hilliard/oh/r_t_yoder_electric_inc_hilliard/278123.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Excel Electric",
+      "city_state": "Longmont, CO",
+      "category": "electrician",
+      "contact_email": "electricexcelco@gmail.com",
+      "source_url": "https://www.whofish.org/business/Longmont/CO/Excel_Electric/312529.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Lone Star Electric",
+      "city_state": "Abilene, TX",
+      "category": "electrician",
+      "contact_email": "Jen@lonestarelectricabilene.com",
+      "source_url": "https://www.whofish.org/business/Abilene/TX/Lone_Star_Electric/295814.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Premier Comfort Heating and Air Conditioning, Inc.",
+      "city_state": "Elgin, IL",
+      "category": "hvac",
+      "contact_email": "premiercomfortheating@gmail.com",
+      "source_url": "https://www.whofish.org/business/Elgin/IL/Premier_Comfort_Heating_and_Air_Conditioning_Inc_/366543.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Western Heating and Air",
+      "city_state": "Orem, UT",
+      "category": "hvac",
+      "contact_email": "western_heating@yahoo.com",
+      "source_url": "https://www.whofish.org/business/Salt_Lake_City/UT/Western_Heating_and_Air/303744.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Authority Heating & Cooling",
+      "city_state": "Orem, UT",
+      "category": "hvac",
+      "contact_email": "authorityheating1@outlook.com",
+      "source_url": "https://www.whofish.org/business/Orem/UT/Authority_Heating_Cooling/280164.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Redlands Heating & AC Store",
+      "city_state": "Redlands, CA",
+      "category": "hvac",
+      "contact_email": "heatingandacstore@outlook.com",
+      "source_url": "https://www.whofish.org/business/Redlands/CA/Redlands_Heating_AC_Store/302437.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "CTS Heating & Cooling",
+      "city_state": "West Haven, CT",
+      "category": "hvac",
+      "contact_email": "ctsheatingandcooling@outlook.com",
+      "source_url": "https://www.whofish.org/business/West_Haven/CT/CTS_Heating_Cooling/281268.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Elite Comfort Heating & Air Conditioning LLC",
+      "city_state": "Remlap, AL",
+      "category": "hvac",
+      "contact_email": "elitecomfortheating@outlook.com",
+      "source_url": "https://www.whofish.org/business/Remlap/AL/Elite_Comfort_Heating_Air_Conditioning_LLC/289014.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "JMAC Auto Repair",
+      "city_state": "Columbus, OH",
+      "category": "auto-repair",
+      "contact_email": "jmacautorepair0@gmail.com",
+      "source_url": "https://www.whofish.org/business/Columbus/OH/JMAC_Auto_Repair/291494.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Andres Auto Service",
+      "city_state": "Chicago, IL",
+      "category": "auto-repair",
+      "contact_email": "andresautoserviceil@gmail.com",
+      "source_url": "https://www.whofish.org/business/Chicago/IL/Andres_Auto_Service/290402.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Marion St Auto Body",
+      "city_state": "Lynn, MA",
+      "category": "auto-repair",
+      "contact_email": "marionautobody96@gmail.com",
+      "source_url": "https://www.whofish.org/business/Lynn/MA/Marion_St_Auto_Body/361934.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Guns Auto Glass Repair",
+      "city_state": "Madison, AL",
+      "category": "auto-repair",
+      "contact_email": "gunsautoglassrepair@gmail.com",
+      "source_url": "https://www.whofish.org/business/Madison/AL/Guns_Auto_Glass_Repair/307806.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Star European Repair",
+      "city_state": "Merriam, KS",
+      "category": "auto-repair",
+      "contact_email": "stareuropeanrepairks@outlook.com",
+      "source_url": "https://www.whofish.org/business/Merriam/KS/Star_European_Repair/309877.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Masters European & Japanese Auto Repair",
+      "city_state": "Mill Valley, CA",
+      "category": "auto-repair",
+      "contact_email": "outreach@masterseuropeanjapanese.com",
+      "source_url": "https://www.whofish.org/business/Mill_Valley/CA/Masters_European_Japanese_Auto_Repair/301706.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Excalibur Auto Repair",
+      "city_state": "Austin, TX",
+      "category": "auto-repair",
+      "contact_email": "info@excaliburautorepair.com",
+      "source_url": "https://www.whofish.org/business/Austin/TX/Excalibur_Auto_Repair/300447.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "New Concept Auto Service",
+      "city_state": "Shawnee, KS",
+      "category": "auto-repair",
+      "contact_email": "newconceptautorepairks@gmail.com",
+      "source_url": "https://www.whofish.org/business/Shawnee/KS/New_Concept_Auto_Service/309012.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Mobile Auto Mechanic",
+      "city_state": "Nashville, TN",
+      "category": "auto-repair",
+      "contact_email": "localautomobilemec@outlook.com",
+      "source_url": "https://www.whofish.org/business/Nashville/TN/Mobile_Auto_Mechanic/321971.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Nicks Lawn Care, Landscaping, and Tree Removal",
+      "city_state": "Selkirk, NY",
+      "category": "landscaping",
+      "contact_email": "nickslandscapingny@outlook.com",
+      "source_url": "https://www.whofish.org/business/Selkirk/NY/Nicks_Lawn_Care_Landscaping_and_Tree_Removal/283128.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Emilios Landscaping and Lawn Care LLC",
+      "city_state": "Columbus, OH",
+      "category": "landscaping",
+      "contact_email": "citation.Emilios.alpha@gmail.com",
+      "source_url": "https://www.whofish.org/business/Columbus/OH/Emilios_Landscaping_and_Lawn_Care_LLC/307195.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Fasano Landscaping",
+      "city_state": "Hartford, CT",
+      "category": "landscaping",
+      "contact_email": "fasanolandscaping@gmail.com",
+      "source_url": "https://www.whofish.org/business/Hartford/CT/Fasano_Landscaping/312517.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "GreenCo Lawn Care & Landscapes",
+      "city_state": "Columbiana, AL",
+      "category": "landscaping",
+      "contact_email": "greencolawncare@offilive.com",
+      "source_url": "https://www.whofish.org/business/Columbiana/AL/GreenCo_Lawn_Care_Landscapes/305744.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Lees Lawn and Landscape Inc",
+      "city_state": "Cedar Rapids, IA",
+      "category": "landscaping",
+      "contact_email": "leeslawncarecr@gmail.com",
+      "source_url": "https://www.whofish.org/business/Cedar_Rapids/IA/Lees_Lawn_and_Landscape_Inc/318083.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Garcia Landscaping and Hardscaping LLC",
+      "city_state": "Plainfield, NJ",
+      "category": "landscaping",
+      "contact_email": "Garcialawnlandscaping@gmail.com",
+      "source_url": "https://www.whofish.org/business/Plainfield/NJ/Garcia_Landscaping_and_Hardscaping_LLC/313560.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Newton Lawn Care & Landscaping",
+      "city_state": "Newton, MA",
+      "category": "landscaping",
+      "contact_email": "lawncarenewton@outlook.com",
+      "source_url": "https://www.whofish.org/business/Newton/MA/Newton_Lawn_Care_Landscaping/353942.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Harrell Brothers",
+      "city_state": "Biloxi, MS",
+      "category": "landscaping",
+      "contact_email": "harrellbrothersbiloxi@mybizemailpro.com",
+      "source_url": "https://www.whofish.org/business/Biloxi/MS/Harrell_Brothers/271123.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Turner's Lawn Care",
+      "city_state": "Hot Springs, AR",
+      "category": "landscaping",
+      "contact_email": "turnerslawncarear@gmail.com",
+      "source_url": "https://www.whofish.org/business/Hot_Springs/AR/Turner_s_Lawn_Care/316795.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Henley Roofing Company",
+      "city_state": "Heiskell, TN",
+      "category": "roofing",
+      "contact_email": "henleyroofing@businessmailsystem.com",
+      "source_url": "https://www.whofish.org/business/Boston/MA/Henley_Roofing_Company/364218.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Honor Roofing & Construction",
+      "city_state": "Oklahoma City, OK",
+      "category": "roofing",
+      "contact_email": "HonorRoofingConstruction@businessmailsystem.com",
+      "source_url": "https://www.whofish.org/business/Oklahoma_City/OK/Honor_Roofing_Construction/319108.aspx?rCode=52",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Collins & Son Roofing",
+      "city_state": "Conway, AR",
+      "category": "roofing",
+      "contact_email": "collinsandsonroofing@sparkmail.co",
+      "source_url": "https://www.whofish.org/business/Conway/AR/Collins_Son_Roofing/277163.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Qbis Roofing",
+      "city_state": "Newton, MA",
+      "category": "roofing",
+      "contact_email": "qbisroofing@businessmailsystem.com",
+      "source_url": "https://www.whofish.org/business/Newton/MA/Qbis_Roofing/317053.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Super Roofing Company",
+      "city_state": "Fort Mill, SC",
+      "category": "roofing",
+      "contact_email": "superroofingcomp@outlook.com",
+      "source_url": "https://www.whofish.org/business/Fort_Mill/SC/Super_Roofing_Company/291865.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Stormtrooper Roofing",
+      "city_state": "Allentown, PA",
+      "category": "roofing",
+      "contact_email": "stormtrooperroofingpa@outlook.com",
+      "source_url": "https://www.whofish.org/business/Allentown/PA/Stormtrooper_Roofing/302765.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Three Brothers Roofing Kalamazoo",
+      "city_state": "Kalamazoo, MI",
+      "category": "roofing",
+      "contact_email": "threebrothersroofingkalamazoo@outlook.com",
+      "source_url": "https://www.whofish.org/business/Kalamazoo/MI/Three_Brothers_Roofing_Kalamazoo/290957.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Dr. Pattys Dental Boutique & Spa",
+      "city_state": "Fort Lauderdale, FL",
+      "category": "dental",
+      "contact_email": "drpattydental@outlook.com",
+      "source_url": "https://www.whofish.org/business/Fort_Lauderdale/FL/Dr_Pattys_Dental_Boutique_Spa/288624.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Roberson Dental",
+      "city_state": "Birmingham, AL",
+      "category": "dental",
+      "contact_email": "robersondentalcare1@gmail.com",
+      "source_url": "https://www.whofish.org/business/birmingham/al/roberson_dental_care/222724.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "William G. Rice, DDS",
+      "city_state": "Athens, GA",
+      "category": "dental",
+      "contact_email": "williamricedental01@outlook.com",
+      "source_url": "https://www.whofish.org/business/athens/ga/william_g_rice_dds_cosmetic_dentist/209266.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Cielo Dental & Orthodontics",
+      "city_state": "El Paso, TX",
+      "category": "dental",
+      "contact_email": "cielodentalo@gmail.com",
+      "source_url": "https://www.whofish.org/business/El_Paso/TX/Cielo_Dental_Orthodontics/287842.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Starlite Dental",
+      "city_state": "McKinney, TX",
+      "category": "dental",
+      "contact_email": "satrlitedental1@gmail.com",
+      "source_url": "https://www.whofish.org/business/Mckinney/TX/Starlite_Dental/302707.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Prestige Dental Inc",
+      "city_state": "Clifton, NJ",
+      "category": "dental",
+      "contact_email": "prestigedentalclifton@gmail.com",
+      "source_url": "https://www.whofish.org/business/Clifton/NJ/Prestige_Dental_Inc/280265.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Family Dentist Hackensack",
+      "city_state": "Hackensack, NJ",
+      "category": "dental",
+      "contact_email": "mynewjerseydentists@outlook.com",
+      "source_url": "https://www.whofish.org/business/Hackensack/NJ/Family_Dentist_Hackensack/306410.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "E&H Manufacturing",
+      "city_state": "Charleston, WV",
+      "category": "manufacturing",
+      "contact_email": "eandhmanufacturing8@gmail.com",
+      "source_url": "https://www.whofish.org/business/Charleston/WV/E_H_Manufacturing/287896.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Temper Corporation",
+      "city_state": "Fonda, NY",
+      "category": "manufacturing",
+      "contact_email": "tempercorp@offilive.com",
+      "source_url": "https://www.whofish.org/business/fonda/ny/temper_corporation/182251.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Spencer Manufacturing LLC",
+      "city_state": "Saint Paul, MN",
+      "category": "manufacturing",
+      "contact_email": "gospencermfgusa@gmail.com",
+      "source_url": "https://www.whofish.org/business/Saint_Paul/MN/Spencer_Manufacturing_LLC/319711.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Wilco Manufacturing",
+      "city_state": "Lafayette, LA",
+      "category": "manufacturing",
+      "contact_email": "info@wilcomfg.com",
+      "source_url": "https://www.whofish.org/business/Lafayette/LA/Wilco_Manufacturing/298529.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Future Industries Pvt. Ltd.",
+      "city_state": "Boston, MA",
+      "category": "manufacturing",
+      "contact_email": "indiafutureindustries@gmail.com",
+      "source_url": "https://www.whofish.org/business/Boston/MA/Future_Industries_Pvt_Ltd_/292283.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "IRWaterjet",
+      "city_state": "Joplin, MO",
+      "category": "manufacturing",
+      "contact_email": "sales@irwaterjet.com",
+      "source_url": "https://www.whofish.org/business/Joplin/MO/IRWaterjet/303017.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Canyon Components LLC",
+      "city_state": "Salem, NH",
+      "category": "manufacturing",
+      "contact_email": "canyoncomponents@outlook.com",
+      "source_url": "https://www.whofish.org/business/Salem/NH/Canyon_Components_LLC/298383.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Tim Harvey Real Estate",
+      "city_state": "Upton, MA",
+      "category": "real-estate",
+      "contact_email": "tim@timharveyrealestate.com",
+      "source_url": "https://www.whofish.org/business/Upton/MA/Tim_Harvey_Real_Estate/358391.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Lauren Seaton Homes",
+      "city_state": "Harpers Ferry, WV",
+      "category": "real-estate",
+      "contact_email": "laurenseatonwv@gmail.com",
+      "source_url": "https://www.whofish.org/business/Harpers_Ferry/WV/Lauren_Seaton_Homes/308731.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Jeni Reitz Realty LLC",
+      "city_state": "Columbus, OH",
+      "category": "real-estate",
+      "contact_email": "jeni@jenireitz.com",
+      "source_url": "https://www.whofish.org/business/Columbus/OH/Jeni_Reitz_Realty_LLC_43_Homes/279742.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Casey Ferguson Realtor - HomeSmart",
+      "city_state": "Rancho Cucamonga, CA",
+      "category": "real-estate",
+      "contact_email": "caseyfergusonhomes@gmail.com",
+      "source_url": "https://www.whofish.org/business/Rancho_Cucamonga/CA/Casey_Ferguson_Realtor_HomeSmart/293177.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Nikki Malatesta, Realtor - RE/MAX Suburban",
+      "city_state": "Carol Stream, IL",
+      "category": "real-estate",
+      "contact_email": "nikki@malatestateam.com",
+      "source_url": "https://www.whofish.org/business/Carol_Stream/IL/Nikki_Malatesta_Realtor_Malatesta_Team_RE_MAX_Suburban/313612.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Tara Waugh, REALTOR",
+      "city_state": "Lewisburg, WV",
+      "category": "real-estate",
+      "contact_email": "tara.lynn.campbell1@gmail.com",
+      "source_url": "https://www.whofish.org/business/Lewisburg/WV/Tara_Waugh_REALTOR/253191.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Sherri King Realtor - RE/MAX Vantage",
+      "city_state": "Fall River, MA",
+      "category": "real-estate",
+      "contact_email": "sherrikingrealtormaxvantage@aol.com",
+      "source_url": "https://www.whofish.org/business/Fall_River/MA/Sherri_King_Realtor_RE_MAX_Vantage/351191.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Jason Lapene Real Estate",
+      "city_state": "Lawrenceville, GA",
+      "category": "real-estate",
+      "contact_email": "JasonLapenere@outlook.com",
+      "source_url": "https://www.whofish.org/business/Lawrenceville/GA/Jason_Lapene_Real_Estate/279058.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Bremberger Insurance Agency",
+      "city_state": "Madison, WI",
+      "category": "insurance",
+      "contact_email": "brembergerinsur@mybizemailpro.com",
+      "source_url": "https://www.whofish.org/business/Madison/WI/Bremberger_Insurance_Agency/299422.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Aulton Vann Jr Insurance Agency",
+      "city_state": "Pascagoula, MS",
+      "category": "insurance",
+      "contact_email": "avann2ins@yahoo.com",
+      "source_url": "https://www.whofish.org/business/Pascagoula/MS/Aulton_Vann_Jr_Insurance_Agency/318407.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Thumann Agency, Inc",
+      "city_state": "Dallas, TX",
+      "category": "insurance",
+      "contact_email": "thumanninsuranceagency@mail.ee",
+      "source_url": "https://www.whofish.org/business/Dallas/TX/Thumann_Agency_Inc/287871.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Ashcraft Insurance Agency of Virginia",
+      "city_state": "Richmond, VA",
+      "category": "insurance",
+      "contact_email": "ashcraftinsurance@cock.li",
+      "source_url": "https://www.whofish.org/business/Richmond/VA/Ashcraft_Insurance_Agency_of_Virginia/299843.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Ed Underwood - State Farm Insurance Agent",
+      "city_state": "Franklin, TN",
+      "category": "insurance",
+      "contact_email": "statefarmedunder@outlook.com",
+      "source_url": "https://www.whofish.org/business/Franklin/TN/Ed_Underwood_State_Farm_Insurance_Agent/289945.aspx",
+      "verified": "2026-10-02",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Carlos Insurance",
+      "city_state": "Knoxville, TN",
+      "category": "insurance",
+      "contact_email": "carlosinstn@gmail.com",
+      "source_url": "https://www.whofish.org/business/Knoxville/TN/Carlos_Insurance/311241.aspx",
+      "verified": "2026-10-02",
       "verification": "published business email; verified against business site/listing"
     }
   ]
