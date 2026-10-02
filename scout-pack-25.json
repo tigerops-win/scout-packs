@@ -1,0 +1,242 @@
+{
+  "pack": "scout-pack-25",
+  "seller": "Tiger Operations",
+  "lead_count": 25,
+  "price_usd": 9,
+  "verified": "2026-10-01",
+  "verification_method": "published business email; verified against business site/listing. No guessed or role-based catch-all addresses.",
+  "fields": [
+    "company_name",
+    "city_state",
+    "category",
+    "contact_email",
+    "source_url"
+  ],
+  "leads": [
+    {
+      "company_name": "Julie Services - Auto Repair",
+      "city_state": "Columbus, OH",
+      "category": "auto-repair",
+      "contact_email": "julieservice92@gmail.com",
+      "source_url": "http://julie-services.tiiny.site/",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Edison Electric, Inc.",
+      "city_state": "Minneapolis, MN",
+      "category": "electrician",
+      "contact_email": "electricianminneapolis1@gmail.com",
+      "source_url": "https://www.whofish.org/business/Minneapolis/MN/Edison_Electric_Inc_/320156.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Spencer Heat & Air, HVAC & ELECTRICAL",
+      "city_state": "Spencer, OK",
+      "category": "hvac",
+      "contact_email": "SPENCERHEATANDAIR@COX.NET",
+      "source_url": "https://www.whofish.org/business/Spencer/OK/Spencer_Heat_Air_HVAC_ELECTRICAL/289064.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Avon Containners",
+      "city_state": "Boston, MA",
+      "category": "manufacturing",
+      "contact_email": "avonsachin17@gmail.com",
+      "source_url": "https://www.whofish.org/Default.aspx?tabid=1&action=directmail&itemid=287538&panel=loc&rCode=1",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "409 Plumbing",
+      "city_state": "Orange, TX",
+      "category": "plumbing",
+      "contact_email": "409plumbing@mail.ee",
+      "source_url": "https://www.whofish.org/business/Orange/TX/409_Plumbing/321481.aspx?rCode=55",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "El Sol Mexican Restaurant",
+      "city_state": "Waverly, IA",
+      "category": "restaurant",
+      "contact_email": "elsolwaverly@inboxkitten.com",
+      "source_url": "https://www.whofish.org/Default.aspx?tabid=1&action=directmail&itemid=319308&panel=loc&rCode=1",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Express Hardware Direct",
+      "city_state": "Langley, OK",
+      "category": "retail",
+      "contact_email": "michaew2lsh@gmail.com",
+      "source_url": "https://www.whofish.org/business/Langley/OK/Express_Hardware_Direct/277329.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Fogle's Automotive Service",
+      "city_state": "Columbus, OH",
+      "category": "auto-repair",
+      "contact_email": "FoglesAuto@gmail.com",
+      "source_url": "http://www.foglesauto.com/contactus.html",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Excel Electric - Boulder City",
+      "city_state": "Boulder, CO",
+      "category": "electrician",
+      "contact_email": "bouldercity@electricexcel.com",
+      "source_url": "https://www.whofish.org/business/Boulder/CO/Excel_Electric_Boulder_City/314034.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "On Demand Heating and Cooling",
+      "city_state": "Bensalem, PA",
+      "category": "hvac",
+      "contact_email": "ondemandheatingpa@offilive.com",
+      "source_url": "https://www.whofish.org/business/Bensalem/PA/On_Demand_Heating_and_Cooling/297217.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Simplex System Controls, Inc.",
+      "city_state": "Elmhurst, IL",
+      "category": "manufacturing",
+      "contact_email": "simplexsystemcontrols@outlook.com",
+      "source_url": "https://www.whofish.org/business/Elmhurst/IL/Simplex_System_Controls_Inc_/302583.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Pro Construction & Plumbing",
+      "city_state": "Ridgecrest, CA",
+      "category": "plumbing",
+      "contact_email": "rcproplumb@outlook.com",
+      "source_url": "https://www.whofish.org/business/Ridgecrest/CA/Pro_Construction_Plumbing/302712.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "New York Deli & Pizzeria",
+      "city_state": "Nescopeck, PA",
+      "category": "restaurant",
+      "contact_email": "newyorkdelipizzeria@inboxkitten.com",
+      "source_url": "https://www.whofish.org/Default.aspx?tabid=1&action=directmail&itemid=290111&panel=loc&rCode=1",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Jonestown Ag Supply",
+      "city_state": "Jonestown, PA",
+      "category": "retail",
+      "contact_email": "jonestownag@outlook.com",
+      "source_url": "https://www.whofish.org/business/Jonestown/PA/Jonestown_Ag_Supply/308030.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Car Pro Auto Body",
+      "city_state": "Columbus, OH",
+      "category": "auto-repair",
+      "contact_email": "CARPROAS@GMAIL.COM",
+      "source_url": "https://www.carproautobody.com/autopainting",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Lockhart Electric LLC",
+      "city_state": "Fort Collins, CO",
+      "category": "electrician",
+      "contact_email": "lockhartelec@hotmail.com",
+      "source_url": "https://www.whofish.org/business/Fort_Collins/CO/Lockhart_Electric_LLC/299907.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Sheffield Heating & Air Conditioning",
+      "city_state": "New York, NY",
+      "category": "hvac",
+      "contact_email": "sheffieldheatinga@gmail.com",
+      "source_url": "https://www.whofish.org/business/New_York/NY/Sheffield_Heating_Air_Conditioning/301797.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "LeWu constant force spring manufacturers",
+      "city_state": "Whitehall, MT",
+      "category": "manufacturing",
+      "contact_email": "constantforcespring4@gmail.com",
+      "source_url": "https://www.whofish.org/business/Whitehall/MT/LeWu_constant_force_spring_manufacturers/292432.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Keemer Plumbing",
+      "city_state": "Salt Lake City, UT",
+      "category": "plumbing",
+      "contact_email": "keemerplumbing@outlook.com",
+      "source_url": "https://www.whofish.org/business/Salt_Lake_City/UT/Keemer_Plumbing/299699.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Juan's Super Pollo",
+      "city_state": "Baldwin Park, CA",
+      "category": "restaurant",
+      "contact_email": "Juanssuperpolloco@gmail.com",
+      "source_url": "https://www.whofish.org/business/Baldwin_Park/CA/Juan_s_Super_Pollo/287735.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Proud Souls Barbecue & Provisions",
+      "city_state": "Denver, CO",
+      "category": "retail",
+      "contact_email": "tony@proudsoulsbbq.com",
+      "source_url": "https://www.whofish.org/business/Boston/MA/Proud_Souls_Barbecue_Provisions/288170.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Columbus Mobile Auto Repair LLC",
+      "city_state": "Columbus, OH",
+      "category": "auto-repair",
+      "contact_email": "fixyourcar1706@gmail.com",
+      "source_url": "https://columbusmobileautorepair.neocities.org/",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "GB Electric LLC",
+      "city_state": "Whitehall, PA",
+      "category": "electrician",
+      "contact_email": "gbelectricpa@hotmail.com",
+      "source_url": "https://www.whofish.org/business/Whitehall/PA/GB_Electric_LLC/284076.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "HTCA Heating & Air Conditioning NYC",
+      "city_state": "New York, NY",
+      "category": "hvac",
+      "contact_email": "htcaheatingairconditioningnyc@gmail.com",
+      "source_url": "https://www.whofish.org/business/New_York/NY/HTCA_Heating_Air_Conditioning_NYC/280344.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    },
+    {
+      "company_name": "Copperloy By JH Industries",
+      "city_state": "Twinsburg, OH",
+      "category": "manufacturing",
+      "contact_email": "copperloybyjhindustries@outlook.com",
+      "source_url": "https://www.whofish.org/business/Twinsburg/OH/Copperloy_By_JH_Industries/283385.aspx",
+      "verified": "2026-10-01",
+      "verification": "published business email; verified against business site/listing"
+    }
+  ]
+}
