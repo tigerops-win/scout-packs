@@ -579,5 +579,7 @@ Each lead: company_name, city_state, category, contact_email (verified), source_
 """
 
 if __name__ == "__main__":
-    print(f"scout-packs on 127.0.0.1:{PORT}  sales_enabled={SALES_ENABLED}", flush=True)
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    # Bind 0.0.0.0 for container hosting (Railway, etc.); BIND env can override
+    bind_host = os.environ.get("BIND", "0.0.0.0")
+    print(f"scout-packs on {bind_host}:{PORT}  sales_enabled={SALES_ENABLED}", flush=True)
+    ThreadingHTTPServer((bind_host, PORT), Handler).serve_forever()
