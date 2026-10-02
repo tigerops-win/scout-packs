@@ -609,6 +609,21 @@ table.eps td.d{{color:var(--muted)}}
     def well_known(self):
         base = base_url(self)
         resources = []
+        # Primary product: $0.10/lead lookup. Representative resource URL;
+        # actual queries use /lookup?query=<company or domain>.
+        lookup_accept = {
+            "scheme": "exact",
+            "network": NETWORK,
+            "maxAmountRequired": str(LOOKUP_AMOUNT),
+            "resource": f"{base}/lookup",
+            "description": LOOKUP_DESC,
+            "mimeType": "application/json",
+            "payTo": RECEIVING if SALES_ENABLED else ZERO,
+            "maxTimeoutSeconds": 300,
+            "asset": USDC_BASE,
+            "extra": {"name": "USDC", "version": "2"},
+        }
+        resources.append({"resource": f"{base}/lookup", "accepts": [lookup_accept]})
         for s, p in PACKS.items():
             t = payment_terms(self, s)
             resources.append({"resource": f"{base}/packs/{s}", "accepts": t["accepts"]})
