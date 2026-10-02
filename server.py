@@ -49,6 +49,13 @@ PACKS = {
     "100": {"count": 100, "price_usd": 25, "amount": 25_000_000,  "eta": "within 24 hours (assembled on demand)"},
 }
 
+# Per-lead enrichment lookup (Analyst hunt #3 pivot, 2026-10-02)
+# $0.10 USDC per lookup — fits agent wallet policies ($0.005-$0.75/call)
+LOOKUP_PRICE_USD = 0.10
+LOOKUP_AMOUNT = 100_000  # $0.10 in 6-decimal USDC
+LOOKUP_DESC = ("Lead enrichment lookup — verified business contact for one company "
+               "(company, location, category, verified email, source URL + provenance). Tiger Operations.")
+
 with open(os.path.join(BASE_DIR, "packs", "scout-pack-25.json")) as f:
     PACK_25 = json.load(f)
 
@@ -122,7 +129,46 @@ def verify_payment(tx_hash, pack_size):
             return True, "verified"
     return False, "no_matching_usdc_transfer"
 
-def mask_email(e):
+def verify_lookup_payment(tx_hash):
+    """Returns (ok, detail) for $0.10 lookup payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as e:
+        return (False, "tx_not_found") if e.code == 404 else (False, f"chain_lookup_failed:{e.code}")
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    try:
+        ts_raw = (tx.get("timestamp") or "").replace("Z", "+00:00")
+        from datetime import datetime, timezone
+        ts = datetime.fromisoformat(ts_raw).timestamp()
+        if time.time() - ts > 30 * 86400:
+            return False, "tx_too_old"
+    except Exception:
+        pass
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= LOOKUP_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
     local, _, dom = (e or "").partition("@")
     return (local[:3] + "***@" + dom) if dom else "***"
 
@@ -195,6 +241,68 @@ def paywall_body(handler, pack_size):
         ],
     }
 
+def find_lead(query):
+    """Search the 25-lead database by company name or domain. Returns lead dict or None."""
+    leads = PACK_25.get("leads", []) if isinstance(PACK_25, dict) else PACK_25
+    q = (query or "").strip().lower()
+    if not q:
+        return None
+    # Try domain match first (extract domain from source_url)
+    for lead in leads:
+        src = (lead.get("source_url") or "").lower()
+        try:
+            domain = urlparse(src).netloc.lower().replace("www.", "")
+        except Exception:
+            domain = ""
+        if q in domain or domain in q:
+            return lead
+    # Then company name match
+    for lead in leads:
+        name = (lead.get("company_name") or "").lower()
+        if q in name or name in q:
+            return lead
+    return None
+
+def lookup_payment_terms(handler, query):
+    base = base_url(handler)
+    resource = f"{base}/lookup?query={query}"
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "maxAmountRequired": str(LOOKUP_AMOUNT),
+        "resource": resource,
+        "description": LOOKUP_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USDC", "version": "2"},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def lookup_paywall_body(handler, query):
+    terms = lookup_payment_terms(handler, query)
+    return {
+        "error": "payment_required",
+        "service": "lead-lookup",
+        "query": query,
+        "price_usd": LOOKUP_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            f"1. Send exactly $0.10 in USDC on Base to {RECEIVING if SALES_ENABLED else '(address pending)'}",
+            "2. POST /fulfill-lookup with {\"tx_hash\": \"0x...\", \"query\": \"" + query + "\"}",
+            "3. Receive the verified contact (email + source URL + provenance).",
+        ],
+    }
+
 # ---------------------------------------------------------------- server
 class Handler(BaseHTTPRequestHandler):
     server_version = "scout-packs/1.0"
@@ -256,6 +364,19 @@ class Handler(BaseHTTPRequestHandler):
                 if preview:
                     return self.send_json(200, preview_pack())
                 return self.paywall(size)
+            if path == "/lookup":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                query = params.get("query", params.get("domain", params.get("company", ""))).strip()
+                if not query:
+                    return self.send_json(400, {"error": "missing_query",
+                        "usage": "GET /lookup?query=<company name or domain>",
+                        "price_usd": LOOKUP_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                lead = find_lead(query)
+                if not lead:
+                    return self.send_json(404, {"error": "no_match", "query": query,
+                        "hint": "No verified contact found for this query in the current database."})
+                return self.lookup_paywall(query)
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
@@ -267,6 +388,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == "/fulfill":
                 return self.fulfill()
+            if path == "/fulfill-lookup":
+                return self.fulfill_lookup()
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
@@ -526,6 +649,21 @@ table.eps td.d{{color:var(--muted)}}
             "X-PAYMENT-REQUIRED": terms_b64_v1,
         })
 
+    def lookup_paywall(self, query):
+        body = lookup_paywall_body(self, query)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK, "maxAmountRequired": str(LOOKUP_AMOUNT),
+            "resource": f"{base_url(self)}/lookup?query={query}",
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USDC", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
     def fulfill(self):
         try:
             length = int(self.headers.get("Content-Length", 0))
@@ -554,6 +692,47 @@ table.eps td.d{{color:var(--muted)}}
                         "note": ("Your 50/100-lead pack is assembled on demand from the live verified list "
                                  "and delivered within 24h to your delivery target.")})
         return self.send_json(200, receipt)
+
+    def fulfill_lookup(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        query = str(payload.get("query", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not query:
+            return self.send_json(400, {"error": "missing_query"})
+        lead = find_lead(query)
+        if not lead:
+            return self.send_json(404, {"error": "no_match", "query": query})
+        ok, detail = verify_lookup_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": lookup_paywall_body(self, query)["how_to_pay"]})
+        # Track for the 14-day test: log the sale
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        try:
+            log_path = os.path.join(BASE_DIR, "data", "lookup_sales.jsonl")
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, "a") as f:
+                f.write(json.dumps({
+                    "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "query": query, "tx_hash": tx_hash.lower(),
+                    "sender": sender, "amount_usd": LOOKUP_PRICE_USD,
+                }) + "\n")
+        except Exception:
+            pass
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "lead-lookup",
+            "query": query,
+            "tx_hash": tx_hash.lower(),
+            "price_usd": LOOKUP_PRICE_USD,
+            "lead": lead,
+            "verified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Verified business contact delivered. Source URL included for provenance.",
+        })
 
     def log_message(self, *a):
         pass  # quiet
