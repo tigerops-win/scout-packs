@@ -27,7 +27,7 @@ import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote_plus
 
 # ---------------------------------------------------------------- config
 PORT = int(os.environ.get("PORT", "8000"))
@@ -367,7 +367,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/lookup":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
-                query = params.get("query", params.get("domain", params.get("company", ""))).strip()
+                query = unquote_plus(params.get("query", params.get("domain", params.get("company", "")))).strip()
                 if not query:
                     return self.send_json(400, {"error": "missing_query",
                         "usage": "GET /lookup?query=<company name or domain>",
