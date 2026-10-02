@@ -1,0 +1,18 @@
+name: scout-packs
+description: "Verified B2B lead packs for AI agents: 25/$9, 50/$15, 100/$25. Machine-readable JSON, paid in USDC on Base over x402."
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      baseUrl:
+        type: string
+        description: "Scout Packs endpoint base URL"
+        default: "http://localhost:8000"
+    required: []
+  commandFunction: |
+    (config) => ({
+      command: "uvx",
+      args: ["scout-packs-mcp"],
+      env: { BASE_URL: config.baseUrl || "http://localhost:8000" }
+    })

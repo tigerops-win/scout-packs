@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scout-packs-mcp"
+version = "1.0.0"
+description = "MCP server for Scout Packs: verified B2B lead packs for AI agents, paid in USDC on Base over x402"
+readme = "mcp/README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Tiger Operations" }]
+keywords = ["mcp", "model-context-protocol", "leads", "b2b", "x402", "usdc", "agent-commerce"]
+dependencies = ["mcp>=2"]
+
+[project.scripts]
+scout-packs-mcp = "scout_packs_mcp:main"
+
+[project.urls]
+Homepage = "https://github.com/tigerops-win/scout-packs"
+Repository = "https://github.com/tigerops-win/scout-packs"
+
+[tool.setuptools]
+py-modules = ["scout_packs_mcp"]
+
+[tool.setuptools.package-dir]
+"" = "mcp"
