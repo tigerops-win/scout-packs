@@ -210,7 +210,7 @@ def payment_terms(handler, pack_size):
         "payTo": RECEIVING if SALES_ENABLED else ZERO,
         "maxTimeoutSeconds": 300,
         "asset": USDC_BASE,
-        "extra": {"name": "USDC", "version": "2"},
+        "extra": {"name": "USD Coin", "version": "2"},
     }
     return {
         "x402Version": 2,
@@ -276,7 +276,7 @@ def lookup_payment_terms(handler, query):
         "payTo": RECEIVING if SALES_ENABLED else ZERO,
         "maxTimeoutSeconds": 300,
         "asset": USDC_BASE,
-        "extra": {"name": "USDC", "version": "2"},
+        "extra": {"name": "USD Coin", "version": "2"},
     }
     return {
         "x402Version": 2,
@@ -621,7 +621,7 @@ table.eps td.d{{color:var(--muted)}}
             "payTo": RECEIVING if SALES_ENABLED else ZERO,
             "maxTimeoutSeconds": 300,
             "asset": USDC_BASE,
-            "extra": {"name": "USDC", "version": "2"},
+            "extra": {"name": "USD Coin", "version": "2"},
         }
         resources.append({"resource": f"{base}/lookup", "accepts": [lookup_accept]})
         for s, p in PACKS.items():
@@ -657,7 +657,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/packs/{size}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USDC", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -672,7 +672,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/lookup?query={query}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USDC", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
