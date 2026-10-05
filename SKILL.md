@@ -26,16 +26,21 @@ published, it isn't in the pack. Nothing guessed, nothing pattern-matched.
    # x402Version: 2, scheme: exact, network: eip155:8453 (Base)
    # payTo: 0xAF7B70D8487EE6193701597E67f56A5902d23913
    # asset: USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
-   # maxAmountRequired: 10000 ($0.01)
+   # amount: 10000 ($0.01)
    ```
 
-2. **Pay** — send the exact USDC amount on Base to the `payTo` address,
-   then retry the same URL with the `X-Payment` header carrying the signed
-   payment payload (standard x402 flow).
+2. **Pay (standard x402)** — sign an EIP-3009 authorization for the exact
+   USDC amount on Base to the `payTo` address, then retry the same URL with
+   the signature in the `X-PAYMENT` (v1) or `PAYMENT-SIGNATURE` (v2) header.
+   The payment is verified and settled via facilitator; no separate transfer
+   needed.
 
-3. **Receive** — the 25-pack returns as JSON immediately. For 50/100-packs,
-   `POST /fulfill` with `{"tx_hash": "0x…", "pack": "50"}` — delivered
-   within 24h of payment confirmation.
+   Fallback: send the exact USDC amount on Base to `payTo` yourself, then
+   redeem with the tx hash (`POST /fulfill` for packs, `POST /fulfill-lookup`
+   for lookups).
+
+3. **Receive** — the 25-pack (or lookup contact) returns as JSON immediately.
+   For 50/100-packs, delivered within 24h of payment confirmation.
 
 ## Discovery (free, machine-readable)
 

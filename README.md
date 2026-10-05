@@ -36,7 +36,7 @@ Each lead: `company_name`, `city_state`, `category`, `contact_email` (verified b
 
 `GET /packs/{25,50,100}` → `402 Payment Required`
 - Headers: `PAYMENT-REQUIRED` = base64(JSON x402 v2 terms), `X-PAYMENT-REQUIRED` = base64(JSON x402 v1 terms)
-- Body: `{error:"payment_required", pack, leads, price_usd, currency:"USDC", network:"eip155:8453", fulfillment, sales_enabled, x402:{x402Version:2, accepts:[{scheme:"exact", network, maxAmountRequired (atomic USDC, 6 decimals), resource, description, mimeType, payTo, maxTimeoutSeconds, asset, extra}]}, how_to_pay:[...]}`
+- Body: `{error:"payment_required", pack, leads, price_usd, currency:"USDC", network:"eip155:8453", fulfillment, sales_enabled, x402:{x402Version:2, accepts:[{scheme:"exact", network, amount (atomic USDC, 6 decimals), description, mimeType, payTo, maxTimeoutSeconds, asset, extra}], resource:{url, description, mimeType}}, how_to_pay:[...]}`
 - `sales_enabled:false` while the seller address is unconfigured (current state); flips automatically once set.
 
 `POST /fulfill` — body `{tx_hash:"0x…", pack:"25"|"50"|"100", deliver_to:"…" (optional)}`
@@ -49,8 +49,13 @@ Verification rules: tx must be a successful Base USDC transfer of ≥ the pack a
 ## Buying flow
 
 1. `GET /packs/25` → read the 402 terms (`payTo`, exact USDC amount).
-2. Send exactly $0.01 USDC on Base to `payTo`.
-3. `POST /fulfill` with the tx hash → pack 25 delivered as JSON; 50/100 return a 24h order receipt.
+2. Standard x402: sign an EIP-3009 authorization for exactly $0.01 USDC on
+   Base to `payTo` and retry the same request with the signature in the
+   `X-PAYMENT` (v1) or `PAYMENT-SIGNATURE` (v2) header. The payment is
+   verified + settled via facilitator and pack 25 is returned immediately
+   (50/100 return a 24h order receipt).
+3. Fallback: send exactly $0.01 USDC on Base to `payTo` yourself, then
+   `POST /fulfill` with the tx hash.
 
 Payment is verified on-chain (Blockscout free API): the tx must be a successful
 USDC transfer of ≥ the pack amount to the receiving address. Tx hashes are

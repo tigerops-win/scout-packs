@@ -789,8 +789,8 @@ table.eps td.d{{color:var(--muted)}}
     <p class="sec-sub">Three steps. There is no signup page — there is nothing to sign up for.</p>
     <div class="steps">
       <div class="step"><span class="n">1</span><h3>Choose a pack</h3><p><code>GET /packs/25</code> (or <code>/50</code>, <code>/100</code>) answers <code>402 Payment Required</code> with the exact terms: amount, asset, destination address.</p></div>
-      <div class="step"><span class="n">2</span><h3>Authorize USDC on Base</h3><p>Send the exact USDC amount on Base mainnet to the address in the terms. Your wallet, your keys — one payment, no recurring charge.</p></div>
-      <div class="step"><span class="n">3</span><h3>Receive JSON</h3><p><code>POST /fulfill</code> with your transaction hash. The 25-pack downloads immediately; 50 and 100 are assembled and delivered within 24 hours.</p></div>
+      <div class="step"><span class="n">2</span><h3>Pay with signed x402</h3><p>Sign an EIP-3009 USDC authorization on Base for the exact amount and retry with the signature in <code>X-PAYMENT</code> (v1) or <code>PAYMENT-SIGNATURE</code> (v2). Settled via facilitator — your wallet, your keys, no separate transfer needed.</p></div>
+      <div class="step"><span class="n">3</span><h3>Receive JSON</h3><p>The 25-pack downloads immediately; 50 and 100 are assembled and delivered within 24 hours. Prefer manual? Send the USDC yourself, then <code>POST /fulfill</code> with your transaction hash.</p></div>
     </div>
   </section>
 
@@ -812,11 +812,11 @@ table.eps td.d{{color:var(--muted)}}
     <div class="faq">
       <details>
         <summary>How do I receive a 50 or 100-pack without an account?</summary>
-        <div class="a">Pay, then <code>POST /fulfill</code> with <code>&#123;"tx_hash": "0x…", "pack": "50"&#125;</code> — add <code>"deliver_to"</code> if you want it sent somewhere specific. We verify the USDC transfer on-chain and queue your pack for assembly. Your transaction hash <em>is</em> your receipt; there is nothing to log into.</div>
+        <div class="a">Pay with a signed x402 payment (<code>X-PAYMENT</code> / <code>PAYMENT-SIGNATURE</code>), or pay manually then <code>POST /fulfill</code> with <code>&#123;"tx_hash": "0x…", "pack": "50"&#125;</code> — add <code>"deliver_to"</code> if you want it sent somewhere specific. We verify the USDC transfer on-chain and queue your pack for assembly. Your transaction hash <em>is</em> your receipt; there is nothing to log into.</div>
       </details>
       <details>
         <summary>What exactly am I authorizing?</summary>
-        <div class="a">Exactly $0.01 in USDC on Base (<code>eip155:8453</code>), sent to the address in the 402 payment terms. One payment. No subscription, no recurring charge. Pricing is a demand probe and may change; the 402 terms always show the current price.</div>
+        <div class="a">Exactly $0.01 in USDC on Base (<code>eip155:8453</code>), authorized to the address in the 402 payment terms via a signed x402 payment. One payment. No subscription, no recurring charge. Pricing is a demand probe and may change; the 402 terms always show the current price.</div>
       </details>
       <details>
         <summary>What does &ldquo;verified&rdquo; mean?</summary>

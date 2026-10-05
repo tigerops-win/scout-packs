@@ -68,7 +68,7 @@
       "name": "Tiger Operations",
       "url": "https://github.com/tigerops-win/scout-packs"
     },
-    "description": "$0.01/lead B2B contact lookup for AI agents over x402 (USDC on Base, eip155:8453). GET /lookup?query=<company or domain> returns HTTP 402 with payment terms; pay $0.01 USDC, POST /fulfill-lookup with the tx hash to receive one verified business email + source URL + provenance. No account, no API key, no subscription. Verified B2B lead packs sold to AI agents over x402 (USDC on Base, eip155:8453). Packs: 25 leads $0.01 (instant JSON), 50 leads $0.01, 100 leads $0.01 (assembled within 24h). Every lead: company, contact, title, published business email, source URL. No account, no API key, no subscription. Unpaid requests to paid routes return HTTP 402 with x402 v2 payment terms in the PAYMENT-REQUIRED header.",
+    "description": "$0.01/lead B2B contact lookup for AI agents over x402 (USDC on Base, eip155:8453). GET /lookup?query=<company or domain> returns HTTP 402 with payment terms; pay $0.01 USDC via signed x402 (retry with X-PAYMENT / PAYMENT-SIGNATURE) to receive one verified business email + source URL + provenance (manual fallback: POST /fulfill-lookup with the tx hash). No account, no API key, no subscription. Verified B2B lead packs sold to AI agents over x402 (USDC on Base, eip155:8453). Packs: 25 leads $0.01 (instant JSON), 50 leads $0.01, 100 leads $0.01 (assembled within 24h). Every lead: company, contact, title, published business email, source URL. No account, no API key, no subscription. Unpaid requests to paid routes return HTTP 402 with x402 v2 payment terms in the PAYMENT-REQUIRED header.",
     "license": {
       "name": "MIT",
       "url": "https://github.com/tigerops-win/scout-packs/blob/main/LICENSE"
@@ -439,7 +439,7 @@
     "/lookup": {
       "get": {
         "operationId": "lookupLead",
-        "description": "Look up one verified B2B contact by company name or source domain. Unpaid request returns HTTP 402 with x402 v2 payment terms (PAYMENT-REQUIRED header, base64 JSON: scheme exact, network eip155:8453, maxAmountRequired 10000 base units = $0.01 USDC, payTo 0xAF7B70D8487EE6193701597E67f56A5902d23913, asset USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913). After paying $0.01 USDC on Base, POST /fulfill-lookup with {\"tx_hash\": \"0x...\", \"query\": \"<same query>\"} to receive the verified contact. No match returns 404 with suggestions.",
+        "description": "Look up one verified B2B contact by company name or source domain. Unpaid request returns HTTP 402 with x402 v2 payment terms (PAYMENT-REQUIRED header, base64 JSON: scheme exact, network eip155:8453, maxAmountRequired 10000 base units = $0.01 USDC, payTo 0xAF7B70D8487EE6193701597E67f56A5902d23913, asset USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913). Pay $0.01 USDC on Base via signed x402: retry with the signature in X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) to receive the verified contact (manual fallback: POST /fulfill-lookup with {\"tx_hash\": \"0x...\", \"query\": \"<same query>\"}). No match returns 404 with suggestions.",
         "parameters": [
           {
             "name": "query",
