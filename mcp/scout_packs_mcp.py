@@ -14,9 +14,10 @@ Tools:
                 flow for buying a pack. The USDC payment itself is executed by
                 the buying agent's own wallet against the endpoint; this tool
                 never moves funds and never holds keys.
-  lookup_lead — $0.10/lookup. Enrich one company by name or domain; returns
-                the verified contact (email + source URL + provenance) after
-                x402 payment. This is the primary per-call product.
+  lookup_lead — $0.01/lookup (demand probe, 2026-10-04). Enrich one company by
+                name or domain; returns the verified contact (email + source URL
+                + provenance) after x402 payment. This is the primary per-call
+                product.
 
 Run:  BASE_URL=http://localhost:8000 .venv/bin/python scout_packs_mcp.py
 """
@@ -40,12 +41,12 @@ FULFILLMENT_NOTE = (
 # endpoint is unreachable; every response is labeled so it is never mistaken
 # for live data.
 FALLBACK_PACKS = {
-    "25": {"leads": 25, "price_usd": 9, "currency": "USDC",
+    "25": {"leads": 25, "price_usd": 0.01, "currency": "USDC",
            "network": "eip155:8453", "fulfillment_eta": "instant"},
-    "50": {"leads": 50, "price_usd": 15, "currency": "USDC",
+    "50": {"leads": 50, "price_usd": 0.01, "currency": "USDC",
            "network": "eip155:8453",
            "fulfillment_eta": "within 24 hours (assembled on demand)"},
-    "100": {"leads": 100, "price_usd": 25, "currency": "USDC",
+    "100": {"leads": 100, "price_usd": 0.01, "currency": "USDC",
             "network": "eip155:8453",
             "fulfillment_eta": "within 24 hours (assembled on demand)"},
 }
@@ -82,7 +83,8 @@ def _pack_key(size: str) -> str:
 
 @mcp.tool()
 def list_packs() -> str:
-    """List Scout Packs for sale: sizes, prices, and a redacted sample. Free."""
+    """B2B lead packs for sale: sizes, prices, and a redacted sample. Free.
+    Verified business lead enrichment batches (company, contact, verified email)."""
     lines = ["# Scout Packs — Tiger Operations", ""]
     catalog = _get("/catalog")
     if catalog["ok"]:
@@ -193,7 +195,8 @@ def buy_pack(pack: str) -> str:
 
 @mcp.tool()
 def lookup_lead(query: str) -> str:
-    """Look up one verified B2B contact by company name or domain. $0.10 USDC per lookup.
+    """B2B lead enrichment: contact lookup by company name or domain. Enrich one
+    lead with a verified business email + source URL. $0.01 USDC per lookup.
     Returns the x402 payment requirements; your agent's wallet executes the payment.
     Example: lookup_lead(query="Acme Corp") or lookup_lead(query="acme.com")"""
     q = (query or "").strip()
@@ -220,16 +223,16 @@ def lookup_lead(query: str) -> str:
         ])
     body = res["data"]
     lines = [f"# Lead lookup: '{q}'", ""]
-    lines.append(f"Price: ${body.get('price_usd', 0.10)} {body.get('currency', 'USDC')} "
+    lines.append(f"Price: ${body.get('price_usd', 0.01)} {body.get('currency', 'USDC')} "
                  f"on {body.get('network', 'eip155:8453')}")
     lines.append("")
     accepts = (body.get("x402", {}) or {}).get("accepts", [{}])[0]
     pay_to = accepts.get("payTo", "")
-    amount_raw = accepts.get("maxAmountRequired", "100000")
+    amount_raw = accepts.get("maxAmountRequired", "10000")
     try:
         amount_usdc = int(amount_raw) / 1_000_000
     except (TypeError, ValueError):
-        amount_usdc = 0.10
+        amount_usdc = 0.01
     zero = "0x0000000000000000000000000000000000000000"
     if not pay_to or pay_to.lower() == zero:
         lines.append("SALES PAUSED. Do NOT send funds.")

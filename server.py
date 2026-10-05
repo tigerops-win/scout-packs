@@ -3,7 +3,8 @@
 
 A minimal x402-paywalled lead-pack endpoint. Python stdlib only.
 
-Packs: 25 leads / $9, 50 / $15, 100 / $25. Paid in USDC on Base (eip155:8453).
+Packs: 25/50/100 leads at $0.01 flat each (demand probe, 2026-10-04),
+plus a $0.01/lookup per-lead enrichment endpoint. Paid in USDC on Base (eip155:8453).
 - GET /packs/25   -> the ready-to-deliver 25-lead pack (402 paywall, x402 v1+v2 headers)
 - GET /packs/50, /packs/100 -> 402 paywall; fulfilled as made-to-order within 24h
 - POST /fulfill {tx_hash, pack, deliver_to?} -> on-chain payment verification
@@ -43,24 +44,78 @@ BLOCKSCOUT = "https://base.blockscout.com/api/v2"
 REDEEMED_PATH = os.path.join(BASE_DIR, "data", "redeemed.json")
 VERIFY_PATH = os.path.join(BASE_DIR, "data", "verify.txt")  # 402index domain-verification hash
 
+# Demand probe (Analyst 10-03 reprice verdict, staged 2026-10-04): all packs
+# $0.01 flat. Margin inversion vs Scout COGS is acknowledged — probe, not a
+# business model. Kill gate: >=3 paid lookups from >=2 wallets in 7 days.
 PACKS = {
-    "25":  {"count": 25,  "price_usd": 9,  "amount": 9_000_000,   "eta": "instant"},
-    "50":  {"count": 50,  "price_usd": 15, "amount": 15_000_000,  "eta": "within 24 hours (assembled on demand)"},
-    "100": {"count": 100, "price_usd": 25, "amount": 25_000_000,  "eta": "within 24 hours (assembled on demand)"},
+    "25":  {"count": 25,  "price_usd": 0.01, "amount": 10_000, "eta": "instant"},
+    "50":  {"count": 50,  "price_usd": 0.01, "amount": 10_000, "eta": "within 24 hours (assembled on demand)"},
+    "100": {"count": 100, "price_usd": 0.01, "amount": 10_000, "eta": "within 24 hours (assembled on demand)"},
 }
 
-# Per-lead enrichment lookup (Analyst hunt #3 pivot, 2026-10-02)
-# $0.10 USDC per lookup — fits agent wallet policies ($0.005-$0.75/call)
-LOOKUP_PRICE_USD = 0.10
-LOOKUP_AMOUNT = 100_000  # $0.10 in 6-decimal USDC
-LOOKUP_DESC = ("Lead enrichment lookup — verified business contact for one company "
-               "(company, location, category, verified email, source URL + provenance). Tiger Operations.")
+# Per-lead enrichment lookup (Analyst hunt #3 pivot, 2026-10-02; repriced
+# 2026-10-04 per Analyst demand verdict to $0.01 — the proven bestseller's
+# price (x402.agentutility.ai, 397 calls/30d). Margin inversion acknowledged.)
+LOOKUP_PRICE_USD = 0.01
+LOOKUP_AMOUNT = 10_000  # $0.01 in 6-decimal USDC
+# Keyword-tuned for Agent402 router text-match: lead / enrichment / b2b /
+# contact lookup / email.
+LOOKUP_DESC = ("B2B lead enrichment — contact lookup: enrich any company with a verified "
+               "business email + source URL. One lead lookup per call. Tiger Operations.")
+
+# CDP Bazaar discovery extension (docs.cdp.coinbase.com/x402/bazaar; declared
+# on the wire inside each accepts[] entry per the x402 v2 bazaar schema).
+# Caveats: actual catalog indexing happens only when a payment settles through
+# the CDP facilitator (our fulfill flow is manual/on-chain today), and CDP
+# indexing is subject to the known bug for non-CDP-registered payee EOAs
+# (x402-foundation/x402#2112). Declared now so the first CDP-settled payment
+# fans out to Bazaar/Onyx/Agentic.market automatically.
+def bazaar_ext(input_schema, output_schema):
+    return {
+        "discoverable": True,
+        "inputSchema": input_schema,
+        "outputSchema": output_schema,
+    }
+
+BAZAAR_LOOKUP = bazaar_ext(
+    {"queryParams": {
+        "query": {"type": "string",
+                  "description": "Company name or domain to enrich (e.g. 'Acme Corp' or 'acme.com')",
+                  "required": True}}},
+    {"type": "object", "properties": {
+        "lead": {"type": "object"},
+        "receipt": {"type": "string"},
+        "verified_at": {"type": "string"}}},
+)
+
+BAZAAR_PACK = bazaar_ext(
+    {},
+    {"type": "object", "properties": {
+        "pack": {"type": "string"},
+        "leads": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
 
 with open(os.path.join(BASE_DIR, "packs", "scout-pack-25.json")) as f:
     PACK_25 = json.load(f)
 
 with open(os.path.join(BASE_DIR, "openapi-draft.json")) as f:
     OPENAPI_DOC = json.load(f)  # served verbatim at GET /openapi.json
+
+SKILL_MD_PATH = os.path.join(BASE_DIR, "skills", "scout-packs-lead-lookup", "SKILL.md")
+try:
+    with open(SKILL_MD_PATH) as f:
+        SKILL_MD = f.read()  # served verbatim at GET /skill.md
+except OSError:
+    SKILL_MD = ""
+
+# Durable HTTPS MCP endpoint: when MCP_PROXY_PORT is set (e.g. "8001"), the
+# sibling MCP streamable-HTTP server (mcp/http_server.py, stateless) runs on
+# 127.0.0.1:<port>/mcp and this server reverse-proxies /mcp to it — so one
+# Railway service exposes both the x402 HTTP API and the MCP endpoint on the
+# same durable HTTPS domain (AgentShare precondition: mcp_url must be durable
+# HTTPS; stdio-only is rejected). Unset = /mcp 404s (default local dev).
+MCP_PROXY_PORT = os.environ.get("MCP_PROXY_PORT", "").strip()
 
 TX_RE = re.compile(r"^0x[0-9a-fA-F]{64}$")
 
@@ -130,7 +185,7 @@ def verify_payment(tx_hash, pack_size):
     return False, "no_matching_usdc_transfer"
 
 def verify_lookup_payment(tx_hash):
-    """Returns (ok, detail) for $0.10 lookup payments."""
+    """Returns (ok, detail) for $0.01 lookup payments."""
     if not SALES_ENABLED:
         return False, "sales_paused: receiving address not configured"
     if not TX_RE.match(tx_hash or ""):
@@ -169,22 +224,33 @@ def verify_lookup_payment(tx_hash):
             save_redeemed(redeemed)
             return True, {"sender": sender, "value": val}
     return False, "no_matching_usdc_transfer"
+
+
+def mask_email(e):
     local, _, dom = (e or "").partition("@")
     return (local[:3] + "***@" + dom) if dom else "***"
 
+
 def preview_pack():
+    # preview-500 fix (2026-10-04): every field is read with .get() and a
+    # sane default. A single lead record missing a key previously raised
+    # KeyError -> 500 {"error":"internal"} on /packs/{25,50,100}/preview;
+    # that now degrades to a redacted placeholder instead of a broken page.
     leads = []
     cats = {}
     for l in PACK_25["leads"]:
-        cats[l["category"]] = cats.get(l["category"], 0) + 1
+        cat = (l.get("category") or "uncategorized").strip() or "uncategorized"
+        cats[cat] = cats.get(cat, 0) + 1
+        email = l.get("contact_email") or ""
+        src = l.get("source_url") or ""
         leads.append({
-            "company_name": l["company_name"],
-            "city_state": l["city_state"],
-            "category": l["category"],
-            "contact_email": mask_email(l["contact_email"]),
-            "source_domain": urlparse(l["source_url"]).netloc,
+            "company_name": l.get("company_name") or "n/a",
+            "city_state": l.get("city_state") or "n/a",
+            "category": cat,
+            "contact_email": mask_email(email) if email else "***",
+            "source_domain": urlparse(src).netloc if src else "",
         })
-    return {"pack": "scout-pack-25", "lead_count": 25, "price_usd": 9,
+    return {"pack": "scout-pack-25", "lead_count": 25, "price_usd": PACKS["25"]["price_usd"],
             "category_breakdown": cats, "leads": leads,
             "note": "Emails redacted in preview. Full JSON (verified emails + source URLs) delivered after payment."}
 
@@ -199,7 +265,8 @@ def payment_terms(handler, pack_size):
     base = base_url(handler)
     resource = f"{base}/packs/{pack_size}"
     desc = (f"Scout Pack {p['count']} — {p['count']} verified B2B leads as JSON "
-            f"(company, location, category, verified email, source URL). Tiger Operations.")
+            f"(lead enrichment batch: company, location, category, verified business "
+            f"email, source URL per contact). Tiger Operations.")
     accept = {
         "scheme": "exact",
         "network": NETWORK,
@@ -211,6 +278,7 @@ def payment_terms(handler, pack_size):
         "maxTimeoutSeconds": 300,
         "asset": USDC_BASE,
         "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_PACK},
     }
     return {
         "x402Version": 2,
@@ -235,7 +303,7 @@ def paywall_body(handler, pack_size):
         "sales_enabled": SALES_ENABLED,
         "x402": terms,
         "how_to_pay": [
-            f"1. Send exactly ${p['price_usd']}.00 in USDC on Base to {RECEIVING if SALES_ENABLED else '(address pending)'}",
+            f"1. Send exactly ${p['price_usd']:.2f} USDC on Base to {RECEIVING if SALES_ENABLED else '(address pending)'}",
             "2. POST /fulfill with {\"tx_hash\": \"0x...\", \"pack\": \"" + pack_size + "\"}",
             "3. Receive your pack (25) or order receipt (50/100).",
         ],
@@ -277,6 +345,7 @@ def lookup_payment_terms(handler, query):
         "maxTimeoutSeconds": 300,
         "asset": USDC_BASE,
         "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_LOOKUP},
     }
     return {
         "x402Version": 2,
@@ -297,7 +366,7 @@ def lookup_paywall_body(handler, query):
         "sales_enabled": SALES_ENABLED,
         "x402": terms,
         "how_to_pay": [
-            f"1. Send exactly $0.10 in USDC on Base to {RECEIVING if SALES_ENABLED else '(address pending)'}",
+            f"1. Send exactly ${LOOKUP_PRICE_USD:.2f} USDC on Base to {RECEIVING if SALES_ENABLED else '(address pending)'}",
             "2. POST /fulfill-lookup with {\"tx_hash\": \"0x...\", \"query\": \"" + query + "\"}",
             "3. Receive the verified contact (email + source URL + provenance).",
         ],
@@ -354,6 +423,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_text(200, LLMS_TXT, "text/plain; charset=utf-8")
             if path == "/openapi.json":
                 return self.send_json(200, OPENAPI_DOC)
+            if path == "/skill.md":
+                if SKILL_MD:
+                    return self.send_text(200, SKILL_MD, "text/markdown; charset=utf-8")
+                return self.send_json(404, {"error": "not_found"})
+            if path == "/mcp":
+                return self.proxy_mcp()
             if path == "/logo.png":
                 return self.serve_logo()
             m = re.fullmatch(r"/packs/(\d+)(/preview)?", path)
@@ -390,6 +465,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill()
             if path == "/fulfill-lookup":
                 return self.fulfill_lookup()
+            if path == "/mcp":
+                return self.proxy_mcp()
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
@@ -405,9 +482,10 @@ class Handler(BaseHTTPRequestHandler):
         feat_json = html_lib.escape(json.dumps(feat, indent=2))
         badges = {"25": "Instant", "50": "Within 24 hours", "100": "Within 24 hours"}
         buy_lines = {
-            "25": "Authorize exactly <strong>$9 USDC on Base</strong> for 25 verified leads, delivered immediately.",
-            "50": "Authorize exactly <strong>$15 USDC on Base</strong> for 50 verified leads, delivered within 24 hours.",
-            "100": "Authorize exactly <strong>$25 USDC on Base</strong> for 100 verified leads, delivered within 24 hours.",
+            s: (f"Authorize exactly <strong>${p['price_usd']:.2f} USDC on Base</strong> "
+                f"for {p['count']} verified leads, delivered "
+                f"{'immediately' if s == '25' else 'within 24 hours'}.")
+            for s, p in PACKS.items()
         }
         cards = "".join(
             f'''<div class="pack">
@@ -426,7 +504,7 @@ class Handler(BaseHTTPRequestHandler):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout Packs — Published business contacts. Source-linked JSON. One payment. · Tiger Operations</title>
-<meta name="description" content="Verified B2B lead packs for agents and operators. 25 leads $9, 50 leads $15, 100 leads $25. USDC on Base via x402. No account, API key, or subscription.">
+<meta name="description" content="Verified B2B lead packs and per-lead enrichment lookups for agents. $0.01 per lookup or pack (demand probe). USDC on Base via x402. No account, API key, or subscription.">
 <style>
 :root{{--bg:#faf8f4;--panel:#ffffff;--line:#e4ded2;--line2:#d3cbb9;--ink:#1d2126;--muted:#5d6672;--faint:#9098a3;--amber:#b45309;--amber-dim:rgba(180,83,9,.07);--amber-line:#d9a441;--radius:12px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}}
 *{{box-sizing:border-box}}
@@ -515,7 +593,7 @@ table.eps td.d{{color:var(--muted)}}
     <div>
       <p class="eyebrow">Agent data supply · x402 paywall</p>
       <h1>Published business contacts. Source-linked JSON. One payment.</h1>
-      <p class="lede">B2B lead packs for agents and operators. From $9. No account, API key, or subscription.</p>
+      <p class="lede">B2B lead packs and per-lead enrichment lookups for agents and operators. From $0.01. No account, API key, or subscription.</p>
     </div>
     <div class="record">
       <div class="rec-label">Sample record · from the 25-pack</div>
@@ -565,8 +643,12 @@ table.eps td.d{{color:var(--muted)}}
     <p class="sec-sub">For the agents (and operators) doing the buying.</p>
     <table class="eps">
       <tr><td class="c">GET /catalog</td><td class="d">Pack list and prices — free</td></tr>
-      <tr><td class="c">GET /.well-known/x402</td><td class="d">Machine-readable payment terms for all packs — free</td></tr>
+      <tr><td class="c">GET /.well-known/x402</td><td class="d">Machine-readable payment terms for all packs + lookup — free</td></tr>
       <tr><td class="c">GET /llms.txt</td><td class="d">Agent-readable service description — free</td></tr>
+      <tr><td class="c">GET /skill.md</td><td class="d">Agent skill file (lead lookup usage) — free</td></tr>
+      <tr><td class="c">GET /lookup?query=&lt;company&gt;</td><td class="d">One verified business email per company — 402 paywall ($0.01)</td></tr>
+      <tr><td class="c">POST /fulfill-lookup</td><td class="d">Submit <code>&#123;"tx_hash", "query"&#125;</code>, receive the verified contact — paid</td></tr>
+      <tr><td class="c">/mcp</td><td class="d">MCP streamable-HTTP endpoint (same tools, durable HTTPS) — free tools, paid lookup</td></tr>
       <tr><td class="c">GET /packs/&#123;25,50,100&#125;</td><td class="d">The pack itself — 402 paywall (x402 v2 + v1 headers)</td></tr>
       <tr><td class="c">GET /packs/&#123;25,50,100&#125;/preview</td><td class="d">Redacted sample, emails masked — free</td></tr>
       <tr><td class="c">POST /fulfill</td><td class="d">Submit <code>&#123;"tx_hash", "pack"&#125;</code>, receive the pack — paid</td></tr>
@@ -578,7 +660,7 @@ table.eps td.d{{color:var(--muted)}}
       </details>
       <details>
         <summary>What exactly am I authorizing?</summary>
-        <div class="a">Exactly $9, $15, or $25 in USDC on Base (<code>eip155:8453</code>), sent to the address in the 402 payment terms. One payment. No subscription, no recurring charge.</div>
+        <div class="a">Exactly $0.01 in USDC on Base (<code>eip155:8453</code>), sent to the address in the 402 payment terms. One payment. No subscription, no recurring charge. Pricing is a demand probe and may change; the 402 terms always show the current price.</div>
       </details>
       <details>
         <summary>What does &ldquo;verified&rdquo; mean?</summary>
@@ -609,7 +691,7 @@ table.eps td.d{{color:var(--muted)}}
     def well_known(self):
         base = base_url(self)
         resources = []
-        # Primary product: $0.10/lead lookup. Representative resource URL;
+        # Primary product: $0.01/lookup B2B lead enrichment. Representative resource URL;
         # actual queries use /lookup?query=<company or domain>.
         lookup_accept = {
             "scheme": "exact",
@@ -622,6 +704,7 @@ table.eps td.d{{color:var(--muted)}}
             "maxTimeoutSeconds": 300,
             "asset": USDC_BASE,
             "extra": {"name": "USD Coin", "version": "2"},
+            "extensions": {"bazaar": BAZAAR_LOOKUP},
         }
         resources.append({"resource": f"{base}/lookup", "accepts": [lookup_accept]})
         for s, p in PACKS.items():
@@ -634,6 +717,43 @@ table.eps td.d{{color:var(--muted)}}
             with open(VERIFY_PATH) as f:
                 return self.send_text(200, f.read().strip())
         return self.send_text(404, "not claimed yet")
+
+    def proxy_mcp(self):
+        """Reverse-proxy /mcp to the sibling MCP streamable-HTTP server.
+
+        Active only when MCP_PROXY_PORT is set. The MCP server runs in
+        stateless_http mode, so each request is an independent JSON-RPC
+        POST (or SSE-capable GET) returning a single JSON body — a simple
+        forward/relay is sufficient. Any upstream failure surfaces as 502,
+        never as a fake MCP response.
+        """
+        if not MCP_PROXY_PORT.isdigit():
+            return self.send_json(404, {"error": "not_found"})
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            length = 0
+        body = self.rfile.read(length) if length > 0 else None
+        upstream = f"http://127.0.0.1:{MCP_PROXY_PORT}/mcp"
+        fwd_headers = {k: v for k, v in self.headers.items()
+                       if k.lower() not in ("host", "content-length", "connection")}
+        req = urllib.request.Request(upstream, data=body, headers=fwd_headers,
+                                     method=self.command)
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                resp_body = r.read()
+                status, ctype = r.status, r.headers.get("Content-Type", "application/json")
+        except urllib.error.HTTPError as e:
+            resp_body = e.read() or b""
+            status, ctype = e.code, e.headers.get("Content-Type", "application/json")
+        except Exception:
+            return self.send_json(502, {"error": "mcp_upstream_unreachable",
+                                        "hint": "start mcp/http_server.py on MCP_PROXY_PORT"})
+        self.send_response(status)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(resp_body)))
+        self.end_headers()
+        self.wfile.write(resp_body)
 
     def serve_logo(self):
         logo_path = os.path.join(BASE_DIR, "assets", "scout-packs-logo-512.png")
@@ -753,23 +873,32 @@ table.eps td.d{{color:var(--muted)}}
         pass  # quiet
 
 LLMS_TXT = """# Scout Packs — Tiger Operations
-Verified B2B lead packs, sold to AI agents over x402 (USDC on Base, eip155:8453).
+Verified B2B lead packs and per-lead enrichment lookups, sold to AI agents over
+x402 (USDC on Base, eip155:8453). Demand-probe pricing: $0.01 per lookup or pack.
 
-## Packs
-- scout-pack-25: 25 leads, $9 USDC — delivered instantly as JSON after payment.
-- scout-pack-50: 50 leads, $15 USDC — assembled on demand, delivered within 24h.
-- scout-pack-100: 100 leads, $25 USDC — assembled on demand, delivered within 24h.
+## Services
+- GET /lookup?query=<company or domain> -> 402: one verified business email +
+  source URL for the company ($0.01 USDC).
+- scout-pack-25: 25 leads, $0.01 USDC — delivered instantly as JSON after payment.
+- scout-pack-50: 50 leads, $0.01 USDC — assembled on demand, delivered within 24h.
+- scout-pack-100: 100 leads, $0.01 USDC — assembled on demand, delivered within 24h.
 Each lead: company_name, city_state, category, contact_email (verified), source_url.
 
 ## How to buy
-1. GET /packs/{25,50,100} -> 402 with PAYMENT-REQUIRED (x402 v2) and X-PAYMENT-REQUIRED (v1) headers.
+1. GET /lookup?query=<...> or GET /packs/{25,50,100} -> 402 with
+   PAYMENT-REQUIRED (x402 v2) and X-PAYMENT-REQUIRED (v1) headers.
 2. Send the exact USDC amount on Base to the payTo address.
-3. POST /fulfill {"tx_hash":"0x...","pack":"25"} -> pack JSON (25) or 24h order receipt (50/100).
+3. POST /fulfill-lookup {"tx_hash":"0x...","query":"..."} -> verified contact.
+   POST /fulfill {"tx_hash":"0x...","pack":"25"} -> pack JSON (25) or 24h order
+   receipt (50/100).
 
 ## Discovery
-- /.well-known/x402 — machine-readable payment terms for all packs.
-- /catalog — pack list and prices.
+- /.well-known/x402 — machine-readable payment terms (includes CDP Bazaar
+  discovery extension on every paid route).
+- /catalog — service list and prices.
 - /packs/25/preview — redacted sample (emails masked).
+- /skill.md — agent skill file for the lead lookup.
+- /mcp — MCP streamable-HTTP endpoint (list_packs, buy_pack, lookup_lead).
 """
 
 if __name__ == "__main__":

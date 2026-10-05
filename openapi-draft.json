@@ -68,7 +68,7 @@
       "name": "Tiger Operations",
       "url": "https://github.com/tigerops-win/scout-packs"
     },
-    "description": "$0.10/lead B2B contact lookup for AI agents over x402 (USDC on Base, eip155:8453). GET /lookup?query=<company or domain> returns HTTP 402 with payment terms; pay $0.10 USDC, POST /fulfill-lookup with the tx hash to receive one verified business email + source URL + provenance. No account, no API key, no subscription. Verified B2B lead packs sold to AI agents over x402 (USDC on Base, eip155:8453). Packs: 25 leads $9 (instant JSON), 50 leads $15, 100 leads $25 (assembled within 24h). Every lead: company, contact, title, published business email, source URL. No account, no API key, no subscription. Unpaid requests to paid routes return HTTP 402 with x402 v2 payment terms in the PAYMENT-REQUIRED header.",
+    "description": "$0.01/lead B2B contact lookup for AI agents over x402 (USDC on Base, eip155:8453). GET /lookup?query=<company or domain> returns HTTP 402 with payment terms; pay $0.01 USDC, POST /fulfill-lookup with the tx hash to receive one verified business email + source URL + provenance. No account, no API key, no subscription. Verified B2B lead packs sold to AI agents over x402 (USDC on Base, eip155:8453). Packs: 25 leads $0.01 (instant JSON), 50 leads $0.01, 100 leads $0.01 (assembled within 24h). Every lead: company, contact, title, published business email, source URL. No account, no API key, no subscription. Unpaid requests to paid routes return HTTP 402 with x402 v2 payment terms in the PAYMENT-REQUIRED header.",
     "license": {
       "name": "MIT",
       "url": "https://github.com/tigerops-win/scout-packs/blob/main/LICENSE"
@@ -101,7 +101,7 @@
                                   "type": "string"
                                 },
                                 "maxAmountRequired": {
-                                  "example": "9000000",
+                                  "example": "10000",
                                   "type": "string"
                                 },
                                 "maxTimeoutSeconds": {
@@ -346,7 +346,7 @@
     },
     "/packs/{size}": {
       "get": {
-        "description": "Unpaid request returns HTTP 402 with x402 v2 payment terms (PAYMENT-REQUIRED header, base64 JSON: scheme exact, network eip155:8453, payTo 0xAF7B70D8487EE6193701597E67f56A5902d23913, asset USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913). Amounts: 25\u21929000000, 50\u219215000000, 100\u219225000000 base units. After payment, retry with the X-Payment header (standard x402 flow) or POST /fulfill with the tx hash.",
+        "description": "Unpaid request returns HTTP 402 with x402 v2 payment terms (PAYMENT-REQUIRED header, base64 JSON: scheme exact, network eip155:8453, payTo 0xAF7B70D8487EE6193701597E67f56A5902d23913, asset USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913). Amounts: all packs and lookups 10000 base units ($0.01 USDC). After payment, retry with the X-Payment header (standard x402 flow) or POST /fulfill with the tx hash.",
         "operationId": "getPack",
         "parameters": [
           {
@@ -439,7 +439,7 @@
     "/lookup": {
       "get": {
         "operationId": "lookupLead",
-        "description": "Look up one verified B2B contact by company name or source domain. Unpaid request returns HTTP 402 with x402 v2 payment terms (PAYMENT-REQUIRED header, base64 JSON: scheme exact, network eip155:8453, maxAmountRequired 100000 base units = $0.10 USDC, payTo 0xAF7B70D8487EE6193701597E67f56A5902d23913, asset USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913). After paying $0.10 USDC on Base, POST /fulfill-lookup with {\"tx_hash\": \"0x...\", \"query\": \"<same query>\"} to receive the verified contact. No match returns 404 with suggestions.",
+        "description": "Look up one verified B2B contact by company name or source domain. Unpaid request returns HTTP 402 with x402 v2 payment terms (PAYMENT-REQUIRED header, base64 JSON: scheme exact, network eip155:8453, maxAmountRequired 10000 base units = $0.01 USDC, payTo 0xAF7B70D8487EE6193701597E67f56A5902d23913, asset USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913). After paying $0.01 USDC on Base, POST /fulfill-lookup with {\"tx_hash\": \"0x...\", \"query\": \"<same query>\"} to receive the verified contact. No match returns 404 with suggestions.",
         "parameters": [
           {
             "name": "query",
@@ -464,7 +464,7 @@
     "/fulfill-lookup": {
       "post": {
         "operationId": "fulfillLookup",
-        "description": "Redeem a $0.10 USDC lookup payment. The endpoint verifies the USDC transfer on-chain (exact payTo, sufficient amount, tx not previously redeemed) and returns the verified contact: company, location, category, verified business email, source URL, provenance.",
+        "description": "Redeem a $0.01 USDC lookup payment. The endpoint verifies the USDC transfer on-chain (exact payTo, sufficient amount, tx not previously redeemed) and returns the verified contact: company, location, category, verified business email, source URL, provenance.",
         "requestBody": {
           "required": true,
           "content": {
