@@ -138,6 +138,147 @@ def fetch_json(url, timeout=20):
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.load(r)
 
+def post_json(url, obj, timeout=25):
+    """POST JSON; returns the decoded body. HTTP error bodies that decode as
+    JSON are returned as-is (facilitators report verdicts like isValid:false
+    with 4xx), so callers see the verdict instead of an exception."""
+    data = json.dumps(obj).encode()
+    req = urllib.request.Request(url, data=data, headers={
+        "User-Agent": "scout-packs/1.0",
+        "Content-Type": "application/json",
+        "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        try:
+            return json.load(e)
+        except Exception:
+            raise
+
+# ---------------------------------------------------------------- standard x402 settlement
+# Signed-payment flow (what real x402 clients speak): the buyer signs an
+# EIP-3009 transfer authorization and retries with X-PAYMENT (v1) or
+# PAYMENT-SIGNATURE (v2). We verify + settle through a public facilitator —
+# no private keys on this server; USDC settles straight to RECEIVING.
+# Default: the PayAI facilitator (free tier, no key, Base mainnet capable).
+# Override with X402_FACILITATOR_URL to point at CDP or a self-hosted one.
+FACILITATOR_URL = os.environ.get("X402_FACILITATOR_URL", "https://facilitator.payai.network").strip().rstrip("/")
+# Network label per protocol version (v1 uses short names, v2 uses CAIP-2).
+NETWORK_V1 = "base"
+NETWORK_V2 = NETWORK  # "eip155:8453"
+X402_SETTLED_PATH = os.path.join(BASE_DIR, "data", "x402_settled.json")
+
+def load_settled():
+    try:
+        with open(X402_SETTLED_PATH) as f:
+            d = json.load(f)
+            return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+def save_settled(d):
+    tmp = X402_SETTLED_PATH + ".tmp"
+    os.makedirs(os.path.dirname(X402_SETTLED_PATH), exist_ok=True)
+    with open(tmp, "w") as f:
+        json.dump(d, f)
+    os.replace(tmp, X402_SETTLED_PATH)
+
+def x402_incoming_payment(headers):
+    """Return (version, payment_b64) from X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)."""
+    v1 = headers.get("X-PAYMENT")
+    if v1 and v1.strip():
+        return 1, v1.strip()
+    v2 = headers.get("PAYMENT-SIGNATURE")
+    if v2 and v2.strip():
+        return 2, v2.strip()
+    return None, None
+
+def x402_requirements(version, resource_url, amount, description):
+    """paymentRequirements for the facilitator, shaped per protocol version.
+
+    v1: maxAmountRequired + short network name + string resource.
+    v2: amount + CAIP-2 network (resource lives top-level in the 402; the
+    facilitator reference omits it here)."""
+    req = {
+        "scheme": "exact",
+        "asset": USDC_BASE,
+        "payTo": RECEIVING,
+        "maxTimeoutSeconds": 300,
+        "extra": {"name": "USD Coin", "version": "2"},
+    }
+    if version == 2:
+        req["network"] = NETWORK_V2
+        req["amount"] = str(amount)
+    else:
+        req["network"] = NETWORK_V1
+        req["maxAmountRequired"] = str(amount)
+        req["resource"] = resource_url
+    return req
+
+def payer_from_x402_payload(payload):
+    try:
+        return str(payload["payload"]["authorization"]["from"]).lower()
+    except Exception:
+        return ""
+
+def settle_x402_payment(version, payment_b64, requirements):
+    """Verify + settle a signed x402 payment via the facilitator.
+
+    Returns (ok, info). On success info = {"tx_hash", "payer", "replay"}.
+    Replays of an already-settled payment re-serve without re-settling.
+    """
+    try:
+        payload = json.loads(base64.b64decode(payment_b64).decode())
+    except Exception:
+        return False, "bad_payment_encoding"
+    digest = hashlib.sha256(payment_b64.encode()).hexdigest()
+    settled = load_settled()
+    if digest in settled:
+        rec = settled[digest]
+        return True, {"tx_hash": rec.get("tx_hash", ""), "payer": rec.get("payer", ""),
+                      "replay": True}
+    body = {"x402Version": version, "paymentPayload": payload,
+            "paymentHeader": payment_b64,
+            "paymentRequirements": requirements}
+    try:
+        v = post_json(FACILITATOR_URL + "/verify", body)
+    except Exception:
+        return False, "facilitator_unreachable"
+    if not isinstance(v, dict) or not v.get("isValid"):
+        reason = (v or {}).get("invalidReason", "unknown")
+        return False, "payment_invalid:%s" % reason
+    try:
+        s = post_json(FACILITATOR_URL + "/settle", body)
+    except Exception:
+        return False, "facilitator_unreachable"
+    if not isinstance(s, dict) or not s.get("success"):
+        reason = (s or {}).get("errorReason", "unknown")
+        return False, "settlement_failed:%s" % reason
+    tx_hash = str(s.get("transaction") or s.get("txID") or s.get("txHash") or "")
+    payer = payer_from_x402_payload(payload)
+    settled[digest] = {"tx_hash": tx_hash, "payer": payer,
+                       "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    save_settled(settled)
+    return True, {"tx_hash": tx_hash, "payer": payer, "replay": False}
+
+def x402_settlement_response_header(version, tx_hash, payer):
+    """Value for PAYMENT-RESPONSE (v2) / X-PAYMENT-RESPONSE (v1)."""
+    resp = {"success": True, "transaction": tx_hash, "network": NETWORK,
+            "payer": payer}
+    return base64.b64encode(json.dumps(resp).encode()).decode()
+
+def log_sale(kind, record):
+    try:
+        path = os.path.join(BASE_DIR, "data", kind + "_sales.jsonl")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        record = dict(record)
+        record["ts"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        with open(path, "a") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception:
+        pass
+
 def blockscout_tx(tx_hash):
     return fetch_json(f"{BLOCKSCOUT}/transactions/{tx_hash}")
 
@@ -270,8 +411,9 @@ def payment_terms(handler, pack_size):
     accept = {
         "scheme": "exact",
         "network": NETWORK,
+        "amount": str(p["amount"]),
         "maxAmountRequired": str(p["amount"]),
-        "resource": resource,
+        "resource": {"url": resource, "description": desc, "mimeType": "application/json"},
         "description": desc,
         "mimeType": "application/json",
         "payTo": RECEIVING if SALES_ENABLED else ZERO,
@@ -303,8 +445,16 @@ def paywall_body(handler, pack_size):
         "sales_enabled": SALES_ENABLED,
         "x402": terms,
         "how_to_pay": [
-            f"1. Send exactly ${p['price_usd']:.2f} USDC on Base to {RECEIVING if SALES_ENABLED else '(address pending)'}",
-            "2. POST /fulfill with {\"tx_hash\": \"0x...\", \"pack\": \"" + pack_size + "\"}",
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${p['price_usd']:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return your pack immediately (25) "
+             "or queue it (50/100)."),
+            ("2. Manual: send exactly "
+             f"${p['price_usd']:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then "
+             "POST /fulfill with {\"tx_hash\": \"0x...\", \"pack\": \"" + pack_size + "\"}"),
             "3. Receive your pack (25) or order receipt (50/100).",
         ],
     }
@@ -337,8 +487,9 @@ def lookup_payment_terms(handler, query):
     accept = {
         "scheme": "exact",
         "network": NETWORK,
+        "amount": str(LOOKUP_AMOUNT),
         "maxAmountRequired": str(LOOKUP_AMOUNT),
-        "resource": resource,
+        "resource": {"url": resource, "description": LOOKUP_DESC, "mimeType": "application/json"},
         "description": LOOKUP_DESC,
         "mimeType": "application/json",
         "payTo": RECEIVING if SALES_ENABLED else ZERO,
@@ -366,8 +517,15 @@ def lookup_paywall_body(handler, query):
         "sales_enabled": SALES_ENABLED,
         "x402": terms,
         "how_to_pay": [
-            f"1. Send exactly ${LOOKUP_PRICE_USD:.2f} USDC on Base to {RECEIVING if SALES_ENABLED else '(address pending)'}",
-            "2. POST /fulfill-lookup with {\"tx_hash\": \"0x...\", \"query\": \"" + query + "\"}",
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${LOOKUP_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the contact immediately."),
+            ("2. Manual: send exactly "
+             f"${LOOKUP_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-lookup "
+             "with {\"tx_hash\": \"0x...\", \"query\": \"" + query + "\"}"),
             "3. Receive the verified contact (email + source URL + provenance).",
         ],
     }
@@ -770,10 +928,13 @@ table.eps td.d{{color:var(--muted)}}
         return self.send_json(404, {"error": "not_found"})
 
     def paywall(self, size):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_pack(size, version, payment_b64)
         body = paywall_body(self, size)
         terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
         terms_v1 = {"x402Version": 1, "accepts": [{
-            "scheme": "exact", "network": NETWORK, "maxAmountRequired": str(PACKS[size]["amount"]),
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(PACKS[size]["amount"]),
             "resource": f"{base_url(self)}/packs/{size}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
@@ -785,10 +946,13 @@ table.eps td.d{{color:var(--muted)}}
         })
 
     def lookup_paywall(self, query):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_lookup(query, version, payment_b64)
         body = lookup_paywall_body(self, query)
         terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
         terms_v1 = {"x402Version": 1, "accepts": [{
-            "scheme": "exact", "network": NETWORK, "maxAmountRequired": str(LOOKUP_AMOUNT),
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(LOOKUP_AMOUNT),
             "resource": f"{base_url(self)}/lookup?query={query}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
@@ -798,6 +962,77 @@ table.eps td.d{{color:var(--muted)}}
             "PAYMENT-REQUIRED": terms_b64_v2,
             "X-PAYMENT-REQUIRED": terms_b64_v1,
         })
+
+    def serve_paid_lookup(self, query, version, payment_b64):
+        """Settle a signed x402 payment for /lookup and return the contact."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        lead = find_lead(query)
+        if not lead:
+            # Nothing to sell: do not settle, do not charge.
+            return self.send_json(404, {"error": "no_match", "query": query,
+                "hint": "No verified contact found for this query in the current database."})
+        resource = f"{base_url(self)}/lookup?query={query}"
+        req = x402_requirements(version, resource, LOOKUP_AMOUNT, LOOKUP_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        log_sale("lookup", {"method": "x402", "query": query, "tx_hash": tx_hash,
+                            "sender": payer or "unknown",
+                            "amount_usd": LOOKUP_PRICE_USD,
+                            "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "lead-lookup",
+            "query": query,
+            "tx_hash": tx_hash,
+            "price_usd": LOOKUP_PRICE_USD,
+            "lead": lead,
+            "verified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Verified business contact delivered. Source URL included for provenance.",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def serve_paid_pack(self, size, version, payment_b64):
+        """Settle a signed x402 payment for /packs/{size}."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        p = PACKS[size]
+        base = base_url(self)
+        resource = f"{base}/packs/{size}"
+        desc = (f"Scout Pack {p['count']} — {p['count']} verified B2B leads as JSON. "
+                "Tiger Operations.")
+        req = x402_requirements(version, resource, p["amount"], desc)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        log_sale("pack", {"method": "x402", "pack": size, "tx_hash": tx_hash,
+                          "sender": payer or "unknown",
+                          "amount_usd": p["price_usd"],
+                          "replay": info.get("replay", False)})
+        receipt = {"receipt": "ok", "pack": f"scout-pack-{size}",
+                   "tx_hash": tx_hash,
+                   "verified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        if size == "25":
+            receipt["leads"] = PACK_25
+            receipt["note"] = "Pack 25 delivered as JSON. Retain this receipt."
+        else:
+            order_id = hashlib.sha256(f"{tx_hash}{size}{time.time()}".encode()).hexdigest()[:16]
+            receipt.update({"order_id": order_id, "status": "queued_for_assembly",
+                            "eta": "within 24 hours of payment confirmation",
+                            "note": ("Your 50/100-lead pack is assembled on demand from the live "
+                                     "verified list and delivered within 24h.")})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, receipt,
+                              {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
 
     def fulfill(self):
         try:
@@ -887,8 +1122,12 @@ Each lead: company_name, city_state, category, contact_email (verified), source_
 ## How to buy
 1. GET /lookup?query=<...> or GET /packs/{25,50,100} -> 402 with
    PAYMENT-REQUIRED (x402 v2) and X-PAYMENT-REQUIRED (v1) headers.
-2. Send the exact USDC amount on Base to the payTo address.
-3. POST /fulfill-lookup {"tx_hash":"0x...","query":"..."} -> verified contact.
+2. Standard x402: sign an EIP-3009 authorization for the exact USDC amount on
+   Base and retry with X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2). We verify +
+   settle via facilitator and return the result with PAYMENT-RESPONSE /
+   X-PAYMENT-RESPONSE.
+   Manual fallback: send the exact USDC amount on Base to the payTo address,
+   then POST /fulfill-lookup {"tx_hash":"0x...","query":"..."} -> verified contact.
    POST /fulfill {"tx_hash":"0x...","pack":"25"} -> pack JSON (25) or 24h order
    receipt (50/100).
 
