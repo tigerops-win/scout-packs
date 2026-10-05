@@ -1,12 +1,20 @@
 # Scout Packs — Tiger Operations
 
-Verified B2B lead packs sold to AI agents over **x402** (USDC on Base, `eip155:8453`).
+Verified B2B lead packs and per-lead enrichment lookups sold to AI agents over
+**x402** (USDC on Base, `eip155:8453`). **Demand-probe pricing (2026-10-04):
+$0.01 per lookup or pack.** Margin inversion vs. Scout COGS is acknowledged —
+this is a demand probe, not a business model. Kill gate: ≥3 paid lookups from
+≥2 distinct wallets in 7 days post-reprice.
 
 | Pack | Leads | Price | Fulfillment |
 |------|-------|-------|-------------|
-| scout-pack-25 | 25 | $9 | instant JSON download after payment |
-| scout-pack-50 | 50 | $15 | assembled on demand, delivered within 24h |
-| scout-pack-100 | 100 | $25 | assembled on demand, delivered within 24h |
+| scout-pack-25 | 25 | $0.01 | instant JSON download after payment |
+| scout-pack-50 | 50 | $0.01 | assembled on demand, delivered within 24h |
+| scout-pack-100 | 100 | $0.01 | assembled on demand, delivered within 24h |
+
+Per-lead enrichment: `GET /lookup?query=<company or domain>` — 402 paywall,
+**$0.01 USDC**, `POST /fulfill-lookup` returns one verified business email +
+source URL + provenance.
 
 Each lead: `company_name`, `city_state`, `category`, `contact_email` (verified business email), `source_url`.
 
@@ -18,7 +26,11 @@ Each lead: `company_name`, `city_state`, `category`, `contact_email` (verified b
 - `GET /llms.txt` — agent buying instructions
 - `GET /packs/{25,50,100}/preview` — redacted preview (emails masked), free
 - `GET /packs/{25,50,100}` — `402` with `PAYMENT-REQUIRED` (v2) + `X-PAYMENT-REQUIRED` (v1) headers
+- `GET /lookup?query=<company or domain>` — `402` with payment terms ($0.01 USDC); no match → `404`
 - `POST /fulfill` — `{"tx_hash":"0x...","pack":"25","deliver_to":"..."}`
+- `POST /fulfill-lookup` — `{"tx_hash":"0x...","query":"<company>"}`
+- `GET /skill.md` — agent skill file for the lead lookup (markdown)
+- `/mcp` — MCP streamable-HTTP endpoint (proxied to the sibling MCP server when `MCP_PROXY_PORT` is set)
 
 ## Interface reference (for agent/MCP clients)
 
@@ -37,7 +49,7 @@ Verification rules: tx must be a successful Base USDC transfer of ≥ the pack a
 ## Buying flow
 
 1. `GET /packs/25` → read the 402 terms (`payTo`, exact USDC amount).
-2. Send exactly $9.00 USDC on Base to `payTo`.
+2. Send exactly $0.01 USDC on Base to `payTo`.
 3. `POST /fulfill` with the tx hash → pack 25 delivered as JSON; 50/100 return a 24h order receipt.
 
 Payment is verified on-chain (Blockscout free API): the tx must be a successful
@@ -51,8 +63,10 @@ single-use (replay-protected); txs older than 30 days are rejected.
   `sales_enabled=false` in 402 bodies and `/.well-known/x402`, and `/fulfill`
   refuses all requests.
 - `SCOUTPACKS_PUBLIC_BASE` — public URL used in 402 `resource` fields.
-- `PORT` — default 8000. The server binds 127.0.0.1 only; public ingress comes
-  from the tunnel.
+- `PORT` — default 8000.
+- `MCP_PROXY_PORT` — optional (e.g. `8001`); when set, `/mcp` reverse-proxies to
+  the sibling MCP streamable-HTTP server (`mcp/http_server.py`) on that port —
+  one deploy exposes both the x402 API and a durable-HTTPS MCP endpoint.
 
 ## Deploy
 
@@ -60,9 +74,10 @@ single-use (replay-protected); txs older than 30 days are rejected.
 ./run.sh &                                   # localhost:8000
 ```
 
-then expose it publicly. In this sandbox, Cloudflare quick tunnels are blocked
-at the network edge, so the live instance uses a localtunnel client that tunnels
-through the egress proxy — see `OPS.md` for the exact commands. On normal infra,
+Production (since 2026-10-02) runs on **Railway** —
+`https://scout-packs-production.up.railway.app` is the sole production endpoint.
+The old localtunnel path (lt-proxy.js, loca.lt subdomains) is dead legacy, retired
+2026-10-02 after chronic 503s. On normal infra for a fresh deploy,
 `cloudflared tunnel --url http://127.0.0.1:8000` works as usual.
 
 Then register on the open indexes, e.g. 402 Index:

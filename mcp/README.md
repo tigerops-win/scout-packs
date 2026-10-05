@@ -1,7 +1,7 @@
 # Scout Packs MCP server — Tiger Operations
 
 An MCP (Model Context Protocol) server that lets AI agents discover and buy
-**Scout Packs** — verified B2B lead packs (25/$9, 50/$15, 100/$25, USDC on Base)
+**Scout Packs** — verified B2B lead packs ($0.01/pack) and per-lead enrichment lookups ($0.01/lookup), USDC on Base
 — from inside any MCP client (Claude Desktop, Cursor, MCP Inspector, agent
 frameworks).
 

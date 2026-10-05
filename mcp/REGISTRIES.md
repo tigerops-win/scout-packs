@@ -15,7 +15,7 @@ Assumptions baked into these drafts:
 
 - **Name:** `scout-packs`
 - **Display name:** Scout Packs — Verified B2B Lead Packs
-- **Short blurb (140 chars):** Verified B2B lead packs for AI agents: 25/$9, 50/$15, 100/$25. Machine-readable JSON, paid in USDC on Base over x402.
+- **Short blurb (140 chars):** B2B lead enrichment for AI agents: verified business emails at $0.01/lookup, lead packs at $0.01/pack. Machine-readable JSON, paid in USDC on Base over x402.
 - **Long description:** Scout Packs by Tiger Operations sells verified B2B lead
   packs machine-to-machine. Each lead ships as JSON with company, city/state,
   category, verified business email, and source URL. Payment is x402 (USDC on
@@ -65,7 +65,7 @@ schema evolves):
 {
   "name": "io.github.tigerops-win/scout-packs",
   "title": "Scout Packs — Verified B2B Lead Packs",
-  "description": "Verified B2B lead packs for AI agents: 25/$9, 50/$15, 100/$25. Machine-readable JSON, paid in USDC on Base over x402.",
+  "description": "B2B lead enrichment for AI agents: verified business emails at $0.01/lookup, lead packs at $0.01/pack. Machine-readable JSON, paid in USDC on Base over x402.",
   "version": "1.0.0",
   "websiteUrl": "https://github.com/tigerops-win/scout-packs",
   "repository": {
@@ -104,7 +104,7 @@ Most-trafficked MCP marketplace; one-click install for Claude Desktop / Cursor.
 
 ```yaml
 name: scout-packs
-description: "Verified B2B lead packs for AI agents: 25/$9, 50/$15, 100/$25. Machine-readable JSON, paid in USDC on Base over x402."
+description: "B2B lead enrichment for AI agents: verified business emails at $0.01/lookup, lead packs at $0.01/pack. Machine-readable JSON, paid in USDC on Base over x402."
 startCommand:
   type: stdio
   configSchema:

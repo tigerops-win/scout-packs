@@ -1,5 +1,5 @@
 name: scout-packs
-description: "Verified B2B lead packs for AI agents: 25/$9, 50/$15, 100/$25. Machine-readable JSON, paid in USDC on Base over x402."
+description: "B2B lead enrichment for AI agents: verified business emails at $0.01/lookup, lead packs at $0.01/pack. Machine-readable JSON, paid in USDC on Base over x402."
 startCommand:
   type: stdio
   configSchema:
