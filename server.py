@@ -412,8 +412,6 @@ def payment_terms(handler, pack_size):
         "scheme": "exact",
         "network": NETWORK,
         "amount": str(p["amount"]),
-        "maxAmountRequired": str(p["amount"]),
-        "resource": {"url": resource, "description": desc, "mimeType": "application/json"},
         "description": desc,
         "mimeType": "application/json",
         "payTo": RECEIVING if SALES_ENABLED else ZERO,
@@ -425,6 +423,7 @@ def payment_terms(handler, pack_size):
     return {
         "x402Version": 2,
         "accepts": [accept],
+        "resource": {"url": resource, "description": desc, "mimeType": "application/json"},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -488,8 +487,6 @@ def lookup_payment_terms(handler, query):
         "scheme": "exact",
         "network": NETWORK,
         "amount": str(LOOKUP_AMOUNT),
-        "maxAmountRequired": str(LOOKUP_AMOUNT),
-        "resource": {"url": resource, "description": LOOKUP_DESC, "mimeType": "application/json"},
         "description": LOOKUP_DESC,
         "mimeType": "application/json",
         "payTo": RECEIVING if SALES_ENABLED else ZERO,
@@ -501,6 +498,7 @@ def lookup_payment_terms(handler, query):
     return {
         "x402Version": 2,
         "accepts": [accept],
+        "resource": {"url": resource, "description": LOOKUP_DESC, "mimeType": "application/json"},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
