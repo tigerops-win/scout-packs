@@ -852,8 +852,7 @@ table.eps td.d{{color:var(--muted)}}
         lookup_accept = {
             "scheme": "exact",
             "network": NETWORK,
-            "maxAmountRequired": str(LOOKUP_AMOUNT),
-            "resource": f"{base}/lookup",
+            "amount": str(LOOKUP_AMOUNT),
             "description": LOOKUP_DESC,
             "mimeType": "application/json",
             "payTo": RECEIVING if SALES_ENABLED else ZERO,
