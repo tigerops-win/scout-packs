@@ -251,6 +251,94 @@ def lookup_lead(query: str) -> str:
     return "\n".join(lines)
 
 
+def _x402_instructions(title: str, path: str, fulfill_path: str,
+                       field_name: str, field_value: str,
+                       result_desc: str, service_label: str) -> str:
+    """Shared 402-flow renderer for the per-call x402 endpoints."""
+    from urllib.parse import quote_plus
+    q = (field_value or "").strip()
+    if not q:
+        return f"Error: {field_name} is required."
+    res = _get(f"{path}?{field_name}={quote_plus(q)}")
+    if res["ok"]:
+        return f"Unexpected response: {res['data']}"
+    if res["status"] != 402:
+        return "\n".join([
+            f"# {service_label} failed",
+            f"Endpoint error: {res['data'].get('error', 'unknown')} (HTTP {res['status']}).",
+            f"Endpoint: {BASE_URL}. No payment should be attempted.",
+        ])
+    body = res["data"]
+    lines = [f"# {title}: '{q}'", ""]
+    lines.append(f"Price: ${body.get('price_usd', 0.01)} {body.get('currency', 'USDC')} "
+                 f"on {body.get('network', 'eip155:8453')}")
+    lines.append("")
+    accepts = (body.get("x402", {}) or {}).get("accepts", [{}])[0]
+    pay_to = accepts.get("payTo", "")
+    amount_raw = accepts.get("maxAmountRequired", "10000")
+    try:
+        amount_usdc = int(amount_raw) / 1_000_000
+    except (TypeError, ValueError):
+        amount_usdc = 0.01
+    zero = "0x0000000000000000000000000000000000000000"
+    if not pay_to or pay_to.lower() == zero:
+        lines.append("SALES PAUSED. Do NOT send funds.")
+        return "\n".join(lines)
+    lines.append("## What your agent must do")
+    lines.append(f"1. Send exactly ${amount_usdc:.2f} USDC on Base to:")
+    lines.append(f"   {pay_to}")
+    lines.append(f"   Asset: {accepts.get('asset', '')}")
+    lines.append("2. Wait for confirmation, then POST:")
+    lines.append(f"   POST {BASE_URL}{fulfill_path}")
+    lines.append(f'   Body: {{"tx_hash": "0x...", "{field_name}": "{q}"}}')
+    lines.append(f"3. {result_desc}")
+    lines.append("")
+    lines.append("Payment is verified on-chain; tx hashes are single-use.")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def tech_stack(domain: str) -> str:
+    """Detect the web technologies powering a domain (CMS, frameworks, analytics,
+    CDNs) from HTTP headers and page markup, with per-technology confidence and
+    evidence. $0.01 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: tech_stack(domain="acme.com")"""
+    return _x402_instructions(
+        "Tech-stack detection", "/tech-stack", "/fulfill-tech-stack",
+        "domain", domain,
+        "Receive the detected technology stack with confidence scores and evidence.",
+        "tech_stack")
+
+
+@mcp.tool()
+def email_pattern(domain: str) -> str:
+    """Find the most likely corporate email address patterns for a domain
+    (first.last@, first@, flast@, ...) plus MX verification that the domain can
+    receive mail. $0.01 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: email_pattern(domain="acme.com")"""
+    return _x402_instructions(
+        "Email-pattern finder", "/email-pattern", "/fulfill-email-pattern",
+        "domain", domain,
+        "Receive ranked email patterns plus MX verification.",
+        "email_pattern")
+
+
+@mcp.tool()
+def ssl_check(domain: str) -> str:
+    """Check a domain's SSL/TLS certificate: issuer, expiry date, days remaining,
+    TLS version, and risk flags (expired, expiring soon, self-signed).
+    $0.01 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: ssl_check(domain="acme.com")"""
+    return _x402_instructions(
+        "SSL certificate check", "/ssl-check", "/fulfill-ssl-check",
+        "domain", domain,
+        "Receive certificate details and risk flags.",
+        "ssl_check")
+
+
 def main() -> None:
     """Entry point for the `scout-packs-mcp` console script (uvx/pipx)."""
     mcp.run()

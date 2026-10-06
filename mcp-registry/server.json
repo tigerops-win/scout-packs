@@ -1,0 +1,17 @@
+{
+ "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+ "description": "B2B data for AI agents: lead lookup, deliverability scoring, domain intel. x402 $0.01-$0.03/call.",
+ "name": "io.github.tigerops-win/scout-packs",
+ "remotes": [
+  {
+   "type": "streamable-http",
+   "url": "https://scout-packs-production.up.railway.app/mcp"
+  }
+ ],
+ "repository": {
+  "url": "https://github.com/tigerops-win/scout-packs",
+  "source": "github"
+ },
+ "title": "Scout Packs",
+ "version": "1.0.0"
+}

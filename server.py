@@ -164,6 +164,49 @@ BAZAAR_DOMAININTEL = bazaar_ext(
         "receipt": {"type": "string"}}},
 )
 
+BAZAAR_TECHSTACK = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain to fingerprint (e.g. 'acme.com').",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "domain": {"type": "string"},
+        "technologies": {"type": "array"},
+        "server_header": {"type": "string"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
+BAZAAR_EMAILPATTERN = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain to analyze (e.g. 'acme.com').",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "domain": {"type": "string"},
+        "patterns": {"type": "array"},
+        "mx_found": {"type": "boolean"},
+        "catch_all_unknown": {"type": "boolean"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
+BAZAAR_SSLCHECK = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain whose certificate to check (e.g. 'acme.com').",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "domain": {"type": "string"},
+        "valid": {"type": "boolean"},
+        "issuer": {"type": "string"},
+        "expires": {"type": "string"},
+        "days_remaining": {"type": "number"},
+        "tls_version": {"type": "string"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
 with open(os.path.join(BASE_DIR, "packs", "scout-pack-25.json")) as f:
     PACK_25 = json.load(f)
 
@@ -1214,6 +1257,621 @@ def domainintel_paywall_body(handler, domain):
         ],
     }
 
+# ---------------------------------------------------------------- penny endpoints
+# tech-stack / email-pattern / ssl-check: $0.01/call each, 100% free upstreams
+# (target's own web server / TLS handshake, Cloudflare DoH), zero marginal cost.
+# Same x402 v1+v2 + manual-tx wiring as domain-intel. Added 2026-10-06.
+from html.parser import HTMLParser  # noqa: E402  (stdlib, for tech-stack parsing)
+from datetime import datetime, timezone  # noqa: E402
+from email.utils import parsedate_to_datetime  # noqa: E402
+
+def _active_flags(flags):
+    """Normalize a flags dict (or list) to a sorted list of active flag names."""
+    if isinstance(flags, dict):
+        return sorted(k for k, v in flags.items() if v)
+    return list(flags or [])
+
+_DOMAIN_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$")
+
+
+def _normalize_domain(domain):
+    try:
+        domain = str(domain).strip().lower()
+        return domain, bool(_DOMAIN_RE.fullmatch(domain))
+    except Exception:
+        return "", False
+
+
+class _TechnologyParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.generators = []
+        self.scripts = []
+        self.links = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = {str(k).lower(): str(v or "") for k, v in attrs}
+        tag = tag.lower()
+
+        if tag == "meta" and attrs.get("name", "").lower() == "generator":
+            self.generators.append(attrs.get("content", ""))
+
+        if tag == "script" and attrs.get("src"):
+            self.scripts.append(attrs["src"])
+
+        if tag == "link" and attrs.get("href"):
+            self.links.append(attrs["href"])
+
+
+def tech_stack(domain):
+    d, valid = _normalize_domain(domain)
+    flags = {
+        "invalid_domain": not valid,
+        "request_failed": False,
+        "parse_failed": False,
+    }
+    result = {"domain": d, "technologies": [], "server_header": ""}
+
+    if not valid:
+        return result, flags
+
+    signatures = {
+        "header": {
+            "nginx": "Nginx",
+            "apache": "Apache",
+            "cloudflare": "Cloudflare",
+            "microsoft-iis": "Microsoft IIS",
+            "openresty": "OpenResty",
+            "litespeed": "LiteSpeed",
+            "gunicorn": "Gunicorn",
+            "uvicorn": "Uvicorn",
+            "express": "Express",
+            "php": "PHP",
+            "asp.net": "ASP.NET",
+            "next.js": "Next.js",
+        },
+        "meta": {
+            "wordpress": "WordPress",
+            "drupal": "Drupal",
+            "joomla": "Joomla",
+            "wix": "Wix",
+            "squarespace": "Squarespace",
+            "ghost": "Ghost",
+            "shopify": "Shopify",
+            "webflow": "Webflow",
+            "hugo": "Hugo",
+            "jekyll": "Jekyll",
+        },
+        "script": {
+            "wp-content": "WordPress",
+            "jquery": "jQuery",
+            "react": "React",
+            "react-dom": "React",
+            "vue": "Vue.js",
+            "angular": "Angular",
+            "bootstrap": "Bootstrap",
+            "next/static": "Next.js",
+            "_next/": "Next.js",
+            "nuxt": "Nuxt",
+            "gatsby": "Gatsby",
+            "shopify": "Shopify",
+            "wixstatic": "Wix",
+            "squarespace": "Squarespace",
+            "cloudflare": "Cloudflare",
+            "googletagmanager": "Google Tag Manager",
+            "google-analytics": "Google Analytics",
+            "gtag/js": "Google Analytics",
+            "segment.com": "Segment",
+            "hotjar": "Hotjar",
+            "hubspot": "HubSpot",
+        },
+        "link": {
+            "wp-content": "WordPress",
+            "bootstrap": "Bootstrap",
+            "font-awesome": "Font Awesome",
+            "fonts.googleapis.com": "Google Fonts",
+            "shopify": "Shopify",
+            "wixstatic": "Wix",
+            "squarespace": "Squarespace",
+            "_next/": "Next.js",
+            "cdn.jsdelivr.net": "jsDelivr",
+            "cdnjs.cloudflare.com": "cdnjs",
+        },
+    }
+
+    try:
+        request = urllib.request.Request(
+            "https://" + d,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; DomainInspector/1.0)",
+                "Accept": "text/html,application/xhtml+xml",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            server = response.headers.get("Server", "")
+            powered_by = response.headers.get("X-Powered-By", "")
+            result["server_header"] = server
+            body = response.read(2_000_000)
+            charset = response.headers.get_content_charset() or "utf-8"
+            html = body.decode(charset, errors="replace")
+    except Exception:
+        flags["request_failed"] = True
+        return result, flags
+
+    parser = _TechnologyParser()
+    try:
+        parser.feed(html)
+    except Exception:
+        flags["parse_failed"] = True
+
+    evidence_sources = {
+        "header": [
+            ("Server", server),
+            ("X-Powered-By", powered_by),
+        ],
+        "meta": [("generator", value) for value in parser.generators],
+        "script": [("src", value) for value in parser.scripts],
+        "link": [("href", value) for value in parser.links],
+    }
+    confidence = {
+        "header": 95,
+        "meta": 95,
+        "script": 85,
+        "link": 75,
+    }
+    detected = {}
+
+    try:
+        for evidence_type, sources in evidence_sources.items():
+            for field, value in sources:
+                lowered = value.lower()
+                for signature, technology in signatures[evidence_type].items():
+                    if signature in lowered:
+                        item = detected.setdefault(
+                            technology,
+                            {
+                                "name": technology,
+                                "confidence": confidence[evidence_type],
+                                "evidence": [],
+                            },
+                        )
+                        item["confidence"] = max(
+                            item["confidence"], confidence[evidence_type]
+                        )
+                        evidence = {
+                            "type": evidence_type,
+                            "field": field,
+                            "value": value,
+                        }
+                        if evidence not in item["evidence"]:
+                            item["evidence"].append(evidence)
+
+        result["technologies"] = sorted(
+            detected.values(),
+            key=lambda item: (-item["confidence"], item["name"].lower()),
+        )
+    except Exception:
+        flags["parse_failed"] = True
+
+    return result, flags
+
+
+def email_pattern(domain):
+    d, valid = _normalize_domain(domain)
+    flags = {
+        "invalid_domain": not valid,
+        "dns_query_failed": False,
+    }
+    result = {
+        "domain": d,
+        "patterns": [],
+        "mx_found": False,
+        "catch_all_unknown": True,
+    }
+
+    if not valid:
+        return result, flags
+
+    result["patterns"] = [
+        "first@" + d,
+        "last@" + d,
+        "first.last@" + d,
+        "firstlast@" + d,
+        "first_last@" + d,
+        "first-last@" + d,
+        "f.last@" + d,
+        "flast@" + d,
+        "firstl@" + d,
+        "last.first@" + d,
+    ]
+
+    try:
+        query = urllib.parse.urlencode({"name": d, "type": "MX"})
+        request = urllib.request.Request(
+            "https://cloudflare-dns.com/dns-query?" + query,
+            headers={
+                "Accept": "application/dns-json",
+                "User-Agent": "DomainInspector/1.0",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace"))
+
+        answers = payload.get("Answer") or []
+        result["mx_found"] = any(
+            isinstance(answer, dict)
+            and answer.get("type") == 15
+            and bool(str(answer.get("data", "")).strip())
+            for answer in answers
+        )
+    except Exception:
+        flags["dns_query_failed"] = True
+
+    return result, flags
+
+
+def ssl_check(domain):
+    d, valid = _normalize_domain(domain)
+    flags = {
+        "invalid_domain": not valid,
+        "expired": False,
+        "expiring_soon_lt_30d": False,
+        "self_signed": False,
+        "connection_failed": False,
+    }
+    result = {
+        "domain": d,
+        "valid": False,
+        "issuer": "",
+        "subject": "",
+        "expires": "",
+        "days_remaining": None,
+        "tls_version": "",
+    }
+
+    if not valid:
+        return result, flags
+
+    def format_name(entries):
+        parts = []
+        for group in entries or ():
+            for key, value in group:
+                parts.append("{}={}".format(key, value))
+        return ", ".join(parts)
+
+    certificate = {}
+    verified = False
+
+    try:
+        context = ssl.create_default_context()
+        with socket.create_connection((d, 443), timeout=5) as raw_socket:
+            raw_socket.settimeout(5)
+            with context.wrap_socket(raw_socket, server_hostname=d) as tls_socket:
+                certificate = tls_socket.getpeercert()
+                result["tls_version"] = tls_socket.version() or ""
+                verified = True
+    except Exception:
+        try:
+            context = ssl._create_unverified_context()
+            with socket.create_connection((d, 443), timeout=5) as raw_socket:
+                raw_socket.settimeout(5)
+                with context.wrap_socket(raw_socket, server_hostname=d) as tls_socket:
+                    result["tls_version"] = tls_socket.version() or ""
+                    binary_certificate = tls_socket.getpeercert(binary_form=True)
+
+            pem = ssl.DER_cert_to_PEM_cert(binary_certificate)
+            path = None
+            try:
+                import tempfile
+
+                with tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".pem", delete=False
+                ) as temporary_file:
+                    temporary_file.write(pem)
+                    path = temporary_file.name
+                certificate = ssl._ssl._test_decode_cert(path)
+            finally:
+                if path:
+                    try:
+                        import os
+
+                        os.unlink(path)
+                    except Exception:
+                        pass
+        except Exception:
+            flags["connection_failed"] = True
+            return result, flags
+
+    try:
+        issuer = format_name(certificate.get("issuer"))
+        subject = format_name(certificate.get("subject"))
+        result["issuer"] = issuer
+        result["subject"] = subject
+        flags["self_signed"] = bool(issuer and subject and issuer == subject)
+
+        not_after = certificate.get("notAfter")
+        if not_after:
+            try:
+                expires_at = parsedate_to_datetime(not_after)
+            except Exception:
+                expires_at = datetime.strptime(
+                    not_after, "%b %d %H:%M:%S %Y %Z"
+                ).replace(tzinfo=timezone.utc)
+
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+            now = datetime.now(timezone.utc)
+            seconds_remaining = (expires_at - now).total_seconds()
+            days_remaining = int(seconds_remaining // 86400)
+            result["expires"] = expires_at.date().isoformat()
+            result["days_remaining"] = days_remaining
+            flags["expired"] = seconds_remaining < 0
+            flags["expiring_soon_lt_30d"] = 0 <= seconds_remaining < 30 * 86400
+
+        result["valid"] = (
+            verified
+            and not flags["expired"]
+            and not flags["self_signed"]
+        )
+    except Exception:
+        result["valid"] = False
+
+    return result, flags
+
+TECHSTACK_PRICE_USD = 0.01
+TECHSTACK_AMOUNT = 10000  # $0.01 in 6-decimal USDC
+TECHSTACK_DESC = ("Tech-stack detection — identify the web technologies powering a domain (CMS, frameworks, analytics, CDNs) from HTTP headers and page markup, with per-technology confidence and evidence. One domain per call. Tiger Operations.")
+
+def verify_techstack_payment(tx_hash):
+    """Returns (ok, detail) for $0.01 tech-stack payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, f"chain_lookup_failed:{ex.code}")
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= TECHSTACK_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def techstack_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = f"{base}/tech-stack?domain={domain}"
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(TECHSTACK_AMOUNT),
+        "description": TECHSTACK_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_TECHSTACK},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": TECHSTACK_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def techstack_paywall_body(handler, domain):
+    terms = techstack_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "tech-stack",
+        "domain": domain,
+        "price_usd": TECHSTACK_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${TECHSTACK_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             f"${TECHSTACK_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-tech-stack "
+             "with {\"tx_hash\": \"0x...\", \"domain\": \"" + domain + "\"}"),
+            "3. Receive the detected technology stack with confidence scores and evidence.",
+        ],
+    }
+EMAILPATTERN_PRICE_USD = 0.01
+EMAILPATTERN_AMOUNT = 10000  # $0.01 in 6-decimal USDC
+EMAILPATTERN_DESC = ("Email-pattern finder — the most likely corporate email address patterns for a domain (first.last@, first@, flast@, ...) plus whether the domain has mail exchangers (MX) so you know it can receive mail. One domain per call. Tiger Operations.")
+
+def verify_emailpattern_payment(tx_hash):
+    """Returns (ok, detail) for $0.01 email-pattern payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, f"chain_lookup_failed:{ex.code}")
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= EMAILPATTERN_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def emailpattern_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = f"{base}/email-pattern?domain={domain}"
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(EMAILPATTERN_AMOUNT),
+        "description": EMAILPATTERN_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_EMAILPATTERN},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": EMAILPATTERN_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def emailpattern_paywall_body(handler, domain):
+    terms = emailpattern_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "email-pattern",
+        "domain": domain,
+        "price_usd": EMAILPATTERN_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${EMAILPATTERN_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             f"${EMAILPATTERN_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-email-pattern "
+             "with {\"tx_hash\": \"0x...\", \"domain\": \"" + domain + "\"}"),
+            "3. Receive ranked email patterns plus MX verification.",
+        ],
+    }
+SSLCHECK_PRICE_USD = 0.01
+SSLCHECK_AMOUNT = 10000  # $0.01 in 6-decimal USDC
+SSLCHECK_DESC = ("SSL/TLS certificate check — issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed) for a domain's HTTPS certificate. One domain per call. Tiger Operations.")
+
+def verify_sslcheck_payment(tx_hash):
+    """Returns (ok, detail) for $0.01 ssl-check payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, f"chain_lookup_failed:{ex.code}")
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= SSLCHECK_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def sslcheck_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = f"{base}/ssl-check?domain={domain}"
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(SSLCHECK_AMOUNT),
+        "description": SSLCHECK_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_SSLCHECK},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": SSLCHECK_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def sslcheck_paywall_body(handler, domain):
+    terms = sslcheck_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "ssl-check",
+        "domain": domain,
+        "price_usd": SSLCHECK_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${SSLCHECK_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             f"${SSLCHECK_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-ssl-check "
+             "with {\"tx_hash\": \"0x...\", \"domain\": \"" + domain + "\"}"),
+            "3. Receive certificate details and risk flags.",
+        ],
+    }
+
 # ---------------------------------------------------------------- server
 class Handler(BaseHTTPRequestHandler):
     server_version = "scout-packs/1.0"
@@ -1322,6 +1980,33 @@ class Handler(BaseHTTPRequestHandler):
                         "usage": "GET /domain-intel?domain=<domain>",
                         "price_usd": DOMAININTEL_PRICE_USD, "currency": "USDC", "network": NETWORK})
                 return self.domainintel_paywall(domain)
+            if path == "/tech-stack":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /tech-stack?domain=<domain>",
+                        "price_usd": TECHSTACK_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.techstack_paywall(domain)
+            if path == "/email-pattern":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /email-pattern?domain=<domain>",
+                        "price_usd": EMAILPATTERN_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.emailpattern_paywall(domain)
+            if path == "/ssl-check":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /ssl-check?domain=<domain>",
+                        "price_usd": SSLCHECK_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.sslcheck_paywall(domain)
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
@@ -1341,6 +2026,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_packsize()
             if path == "/fulfill-domain-intel":
                 return self.fulfill_domainintel()
+            if path == "/fulfill-tech-stack":
+                return self.fulfill_techstack()
+            if path == "/fulfill-email-pattern":
+                return self.fulfill_emailpattern()
+            if path == "/fulfill-ssl-check":
+                return self.fulfill_sslcheck()
             if path == "/mcp":
                 return self.proxy_mcp()
             return self.send_json(404, {"error": "not_found"})
@@ -1562,6 +2253,23 @@ table.eps td.d{{color:var(--muted)}}
                 "packs": {f"scout-pack-{s}": {"leads": p["count"], "price_usd": p["price_usd"],
                            "currency": "USDC", "network": NETWORK, "fulfillment_eta": p["eta"]}
                           for s, p in PACKS.items()},
+                "per_call_services": [
+                    {"path": "/lookup", "price_usd": LOOKUP_PRICE_USD,
+                     "description": "Verified B2B lead lookup by company or domain."},
+                    {"path": "/deliverability", "price_usd": DELIVERABILITY_PRICE_USD,
+                     "description": "Email deliverability scoring (MX/SPF/DMARC/disposable/role)."},
+                    {"path": "/packsize", "price_usd": PACKSIZE_PRICE_USD,
+                     "description": "Pack-size resolver: parse pack count, unit size, unit price."},
+                    {"path": "/domain-intel", "price_usd": DOMAININTEL_PRICE_USD,
+                     "description": "Domain intelligence: RDAP registration + DNS signals."},
+                    {"path": "/tech-stack", "price_usd": TECHSTACK_PRICE_USD,
+                     "description": "Tech-stack detection from headers + page markup."},
+                    {"path": "/email-pattern", "price_usd": EMAILPATTERN_PRICE_USD,
+                     "description": "Likely corporate email patterns + MX verification."},
+                    {"path": "/ssl-check", "price_usd": SSLCHECK_PRICE_USD,
+                     "description": "SSL/TLS certificate details and risk flags."},
+                ],
+                "currency": "USDC", "network": NETWORK,
                 "sales_enabled": SALES_ENABLED}
 
     def well_known(self):
@@ -1588,6 +2296,9 @@ table.eps td.d{{color:var(--muted)}}
             ("/deliverability", DELIVERABILITY_AMOUNT, DELIVERABILITY_DESC, BAZAAR_DELIVERABILITY),
             ("/packsize", PACKSIZE_AMOUNT, PACKSIZE_DESC, BAZAAR_PACKSIZE),
             ("/domain-intel", DOMAININTEL_AMOUNT, DOMAININTEL_DESC, BAZAAR_DOMAININTEL),
+            ("/tech-stack", TECHSTACK_AMOUNT, TECHSTACK_DESC, BAZAAR_TECHSTACK),
+            ("/email-pattern", EMAILPATTERN_AMOUNT, EMAILPATTERN_DESC, BAZAAR_EMAILPATTERN),
+            ("/ssl-check", SSLCHECK_AMOUNT, SSLCHECK_DESC, BAZAAR_SSLCHECK),
         ):
             resources.append({"resource": f"{base}{svc_path}", "accepts": [{
                 "scheme": "exact",
@@ -1899,6 +2610,252 @@ table.eps td.d{{color:var(--muted)}}
             "price_usd": DOMAININTEL_PRICE_USD,
             **intel,
             "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        })
+
+    def techstack_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_techstack(domain, version, payment_b64)
+        body = techstack_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(TECHSTACK_AMOUNT),
+            "resource": f"{base_url(self)}/tech-stack?domain={domain}",
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_techstack(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /tech-stack and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = f"{base_url(self)}/tech-stack?domain={domain}"
+        req = x402_requirements(version, resource, TECHSTACK_AMOUNT, TECHSTACK_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = tech_stack(domain)
+        signals = _active_flags(flags)
+        log_sale("tech-stack", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": TECHSTACK_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "tech-stack",
+            "tx_hash": tx_hash,
+            "price_usd": TECHSTACK_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "HTTP header + markup fingerprinting. Upstream: the domain's own web server.",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_techstack(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_techstack_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": techstack_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = tech_stack(domain)
+        signals = _active_flags(flags)
+        log_sale("tech-stack", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": TECHSTACK_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "tech-stack",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": TECHSTACK_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "HTTP header + markup fingerprinting. Upstream: the domain's own web server.",
+        })
+
+    def emailpattern_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_emailpattern(domain, version, payment_b64)
+        body = emailpattern_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(EMAILPATTERN_AMOUNT),
+            "resource": f"{base_url(self)}/email-pattern?domain={domain}",
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_emailpattern(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /email-pattern and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = f"{base_url(self)}/email-pattern?domain={domain}"
+        req = x402_requirements(version, resource, EMAILPATTERN_AMOUNT, EMAILPATTERN_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = email_pattern(domain)
+        signals = _active_flags(flags)
+        log_sale("email-pattern", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": EMAILPATTERN_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "email-pattern",
+            "tx_hash": tx_hash,
+            "price_usd": EMAILPATTERN_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Pattern ranking + MX check via Cloudflare DoH. Patterns are best-guess formats, not verified mailboxes.",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_emailpattern(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_emailpattern_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": emailpattern_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = email_pattern(domain)
+        signals = _active_flags(flags)
+        log_sale("email-pattern", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": EMAILPATTERN_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "email-pattern",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": EMAILPATTERN_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Pattern ranking + MX check via Cloudflare DoH. Patterns are best-guess formats, not verified mailboxes.",
+        })
+
+    def sslcheck_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_sslcheck(domain, version, payment_b64)
+        body = sslcheck_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(SSLCHECK_AMOUNT),
+            "resource": f"{base_url(self)}/ssl-check?domain={domain}",
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_sslcheck(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /ssl-check and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = f"{base_url(self)}/ssl-check?domain={domain}"
+        req = x402_requirements(version, resource, SSLCHECK_AMOUNT, SSLCHECK_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = ssl_check(domain)
+        signals = _active_flags(flags)
+        log_sale("ssl-check", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": SSLCHECK_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "ssl-check",
+            "tx_hash": tx_hash,
+            "price_usd": SSLCHECK_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Live TLS handshake with the domain. No upstream API.",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_sslcheck(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_sslcheck_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": sslcheck_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = ssl_check(domain)
+        signals = _active_flags(flags)
+        log_sale("ssl-check", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": SSLCHECK_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "ssl-check",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": SSLCHECK_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Live TLS handshake with the domain. No upstream API.",
         })
 
     def packsize_paywall(self, title, price):
