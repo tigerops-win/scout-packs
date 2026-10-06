@@ -71,6 +71,15 @@ DELIVERABILITY_DESC = ("Email deliverability score — MX/SPF/DMARC checks, disp
                        "and role-account detection, bounce-risk score 0-100 with send/caution/"
                        "do_not_send verdict. One email or domain per call. Tiger Operations.")
 
+# Pack-size identity resolver (2026-10-05: idea #23 from the 100-idea blueprint,
+# priority 3/100 — the parser/rules core as a pure x402 data endpoint, no
+# customer data needed). $0.02/call.
+PACKSIZE_PRICE_USD = 0.02
+PACKSIZE_AMOUNT = 20_000  # $0.02 in 6-decimal USDC
+PACKSIZE_DESC = ("Pack-size identity resolver — parse a product title into pack count, "
+                 "unit size, and normalized totals for comparable unit pricing. "
+                 "Deterministic, no customer data needed. Tiger Operations.")
+
 # CDP Bazaar discovery extension (docs.cdp.coinbase.com/x402/bazaar; declared
 # on the wire inside each accepts[] entry per the x402 v2 bazaar schema).
 # Caveats: actual catalog indexing happens only when a payment settles through
@@ -109,6 +118,23 @@ BAZAAR_DELIVERABILITY = bazaar_ext(
         "verdict": {"type": "string"},
         "flags": {"type": "array"},
         "checks": {"type": "object"},
+        "receipt": {"type": "string"}}},
+)
+
+BAZAAR_PACKSIZE = bazaar_ext(
+    {"queryParams": {
+        "title": {"type": "string",
+                  "description": "Product title to parse (e.g. 'Coca-Cola 12-pack 12oz cans').",
+                  "required": True},
+        "price": {"type": "string",
+                  "description": "Optional package price (e.g. '8.99') to compute price per normalized unit.",
+                  "required": False}}},
+    {"type": "object", "properties": {
+        "pack_count": {"type": "number"},
+        "unit_size": {"type": "string"},
+        "total_normalized": {"type": "string"},
+        "unit_price": {"type": "string"},
+        "confidence": {"type": "string"},
         "receipt": {"type": "string"}}},
 )
 
@@ -748,6 +774,232 @@ def deliverability_paywall_body(handler, target):
         ],
     }
 
+# ---------------------------------------------------------------- packsize
+# Pack-size identity resolver: deterministic parse of a product title into
+# pack count + unit size + normalized totals. Stdlib only, no external data.
+
+# unit -> (canonical name, multiplier to base unit)
+UNIT_TABLE = {
+    # weight (base: oz)
+    "oz": ("oz", 1), "ounce": ("oz", 1), "ounces": ("oz", 1),
+    "lb": ("oz", 16), "lbs": ("oz", 16), "pound": ("oz", 16), "pounds": ("oz", 16),
+    "g": ("g", 1), "gram": ("g", 1), "grams": ("g", 1),
+    "kg": ("g", 1000), "kilo": ("g", 1000), "kilogram": ("g", 1000),
+    # volume (base: fl oz)
+    "fl oz": ("fl_oz", 1), "floz": ("fl_oz", 1), "fluid ounce": ("fl_oz", 1),
+    "ml": ("ml", 1), "milliliter": ("ml", 1),
+    "l": ("ml", 1000), "liter": ("ml", 1000), "litre": ("ml", 1000),
+    "gal": ("fl_oz", 128), "gallon": ("fl_oz", 128),
+    "qt": ("fl_oz", 32), "quart": ("fl_oz", 32),
+    "pt": ("fl_oz", 16), "pint": ("fl_oz", 16),
+    # count (base: ct)
+    "ct": ("ct", 1), "count": ("ct", 1),
+    "pack": ("ct", 1), "packs": ("ct", 1),
+    "roll": ("ct", 1), "rolls": ("ct", 1),
+    "sheet": ("ct", 1), "sheets": ("ct", 1),
+    "pair": ("ct", 2), "pairs": ("ct", 2),
+    "dozen": ("ct", 12),
+}
+
+_PACK_RE = re.compile(r"""
+    (?P<n>\d+(?:\.\d+)?)\s*[- ]?\s*pack\b |          # 12-pack, 12 pack
+    \bpack\s+of\s+(?P<n2>\d+)\b |                    # pack of 12
+    \bcase\s+of\s+(?P<n3>\d+)\b |                    # case of 24
+    (?P<n4>\d+)\s*ct\b |                             # 48ct
+    (?P<n5>\d+)\s*count\b |                           # 24 count
+    (?P<n6>\d+)\s+(?:double\s+|mega\s+)?rolls?\b |    # 24 double rolls
+    (?P<n7>\d+)\s+sheets?\b                          # 1000 sheets
+""", re.IGNORECASE | re.VERBOSE)
+
+_X_RE = re.compile(r"(?P<n>\d+)\s*[x×]\s*(?P<q>\d+(?:\.\d+)?)\s*(?P<u>[a-z]+)?", re.IGNORECASE)
+
+_QTY_RE = re.compile(r"(?P<q>\d+(?:\.\d+)?)\s*[- ]?(?P<u>fl oz|floz|fluid ounces?|ounces?|oz|pounds?|lbs?|grams?|g|kilos?|kilograms?|milliliters?|ml|liters?|litres?|l|gallons?|gal|quarts?|qt|pints?|pt|sheets?|rolls?|counts?|ct|pairs?|dozens?)\b",
+                     re.IGNORECASE)
+
+_PACK_UNITS = frozenset(["pack", "packs"])
+
+def packsize_parse(title):
+    """Parse a product title. Returns dict with pack_count, units, totals, confidence."""
+    t = (title or "").strip()
+    low = t.lower()
+    pack_count, pack_evidence = 1, []
+    unit_qty, unit_name, unit_evidence = None, None, []
+
+    m = _PACK_RE.search(low)
+    if m:
+        n = next((g for g in (m.group("n"), m.group("n2"), m.group("n3"),
+                              m.group("n4"), m.group("n5"), m.group("n6"),
+                              m.group("n7")) if g), None)
+        if n:
+            pack_count = int(float(n))
+            pack_evidence.append(m.group(0).strip())
+
+    mx = _X_RE.search(low)
+    if mx and pack_count == 1:
+        # "3 x 44oz" -> pack of 3
+        pack_count = int(mx.group("n"))
+        pack_evidence.append(mx.group(0).strip())
+        uq, uu = mx.group("q"), (mx.group("u") or "").strip().lower()
+        if uq and uu:
+            unit_qty, unit_name = float(uq), uu
+            unit_evidence.append(f"{uq} {uu}")
+
+    if unit_qty is None:
+        # find the largest plausible unit-size mention; skip tokens that are
+        # the pack-count itself (e.g. the "12" in "12-pack")
+        cands = []
+        for qm in _QTY_RE.finditer(low):
+            q, u = float(qm.group("q")), qm.group("u").lower().strip()
+            if u in _PACK_UNITS:
+                continue
+            ev0 = qm.group(0).strip()
+            # skip the pack-count token itself (e.g. "48ct" when pack came from "48ct")
+            if any(ev0 == pe or ev0 in pe for pe in pack_evidence):
+                continue
+            cands.append((q, u, ev0))
+        if cands:
+            # prefer a size that differs from the pack count (avoids "12oz"
+            # being swallowed when the pack is "12-pack"... keep it, it's
+            # the unit). Prefer larger quantities as the unit size.
+            cands.sort(key=lambda c: (c[0] == pack_count and c[1] in ("ct", "count"), -c[0]))
+            unit_qty, unit_name, ev = cands[0][0], cands[0][1], cands[0][2]
+            unit_evidence.append(ev)
+
+    # normalize
+    total_str, base_unit, total_val = None, None, None
+    if unit_qty and unit_name:
+        key = unit_name.rstrip("s") if unit_name.rstrip("s") in UNIT_TABLE else unit_name
+        key = key if key in UNIT_TABLE else unit_name.rstrip("s")
+        if key in UNIT_TABLE:
+            base_unit, mult = UNIT_TABLE[key]
+            total_val = round(unit_qty * mult * pack_count, 2)
+            total_str = f"{total_val:g} {base_unit} total ({pack_count} x {unit_qty:g} {unit_name})"
+        else:
+            total_str = f"{pack_count} x {unit_qty:g} {unit_name} (unit not normalizable)"
+    elif pack_count > 1:
+        total_str = f"{pack_count} ct total"
+
+    if pack_count > 1 and unit_qty:
+        confidence = "high"
+    elif pack_count > 1 or unit_qty:
+        confidence = "medium"
+    else:
+        confidence = "low"
+
+    flags = []
+    if confidence == "low":
+        flags.append("no_pack_pattern_found")
+    if "assorted" in low or "variety" in low:
+        flags.append("assorted_contents_not_comparable")
+
+    return {
+        "title": t,
+        "pack_count": pack_count,
+        "pack_evidence": pack_evidence,
+        "unit_size": f"{unit_qty:g} {unit_name}" if unit_qty else None,
+        "unit_evidence": unit_evidence,
+        "total_normalized": total_str,
+        "base_unit": base_unit,
+        "total_value": total_val,
+        "confidence": confidence,
+        "flags": flags,
+    }
+
+def packsize_unit_price(parsed, price):
+    """Comparable unit price given a package price. Returns string or None."""
+    try:
+        p = float(str(price).replace("$", "").replace(",", "").strip())
+    except (ValueError, TypeError):
+        return None
+    tv = parsed.get("total_value")
+    bu = parsed.get("base_unit")
+    if tv and bu and tv > 0:
+        return f"${p / tv:.4f} per {bu}"
+    pc = parsed.get("pack_count") or 1
+    return f"${p / pc:.4f} per unit ({pc} ct)"
+
+def verify_packsize_payment(tx_hash):
+    """Returns (ok, detail) for $0.02 packsize payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as e:
+        return (False, "tx_not_found") if e.code == 404 else (False, f"chain_lookup_failed:{e.code}")
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= PACKSIZE_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def packsize_payment_terms(handler, title, price):
+    base = base_url(handler)
+    q = f"title={title}" + (f"&price={price}" if price else "")
+    resource = f"{base}/packsize?{q}"
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(PACKSIZE_AMOUNT),
+        "description": PACKSIZE_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_PACKSIZE},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": PACKSIZE_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def packsize_paywall_body(handler, title, price):
+    terms = packsize_payment_terms(handler, title, price)
+    return {
+        "error": "payment_required",
+        "service": "packsize-resolver",
+        "title": title,
+        "price_usd": PACKSIZE_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${PACKSIZE_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the pack-size parse immediately."),
+            ("2. Manual: send exactly "
+             f"${PACKSIZE_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-packsize "
+             "with {\"tx_hash\": \"0x...\", \"title\": \"" + title + "\"}"),
+            "3. Receive the pack-size parse (pack count, unit size, normalized totals, unit price).",
+        ],
+    }
+
 # ---------------------------------------------------------------- server
 class Handler(BaseHTTPRequestHandler):
     server_version = "scout-packs/1.0"
@@ -837,6 +1089,16 @@ class Handler(BaseHTTPRequestHandler):
                         "usage": "GET /deliverability?email=<address> or ?domain=<domain>",
                         "price_usd": DELIVERABILITY_PRICE_USD, "currency": "USDC", "network": NETWORK})
                 return self.deliverability_paywall(target)
+            if path == "/packsize":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                title = unquote_plus(params.get("title", "")).strip()
+                price = unquote_plus(params.get("price", "")).strip() or None
+                if not title:
+                    return self.send_json(400, {"error": "missing_title",
+                        "usage": "GET /packsize?title=<product title>&price=<optional package price>",
+                        "price_usd": PACKSIZE_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.packsize_paywall(title, price)
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
@@ -852,6 +1114,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_lookup()
             if path == "/fulfill-deliverability":
                 return self.fulfill_deliverability()
+            if path == "/fulfill-packsize":
+                return self.fulfill_packsize()
             if path == "/mcp":
                 return self.proxy_mcp()
             return self.send_json(404, {"error": "not_found"})
@@ -1309,6 +1573,88 @@ table.eps td.d{{color:var(--muted)}}
             "checks": checks,
             "scored_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
+
+    def packsize_paywall(self, title, price):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_packsize(title, price, version, payment_b64)
+        body = packsize_paywall_body(self, title, price)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        q = f"title={title}" + (f"&price={price}" if price else "")
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(PACKSIZE_AMOUNT),
+            "resource": f"{base_url(self)}/packsize?{q}",
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def _packsize_result(self, title, price, tx_hash, payer, method):
+        parsed = packsize_parse(title)
+        unit_price = packsize_unit_price(parsed, price) if price else None
+        log_sale("packsize", {"method": method, "title": title, "tx_hash": tx_hash,
+                              "sender": payer or "unknown",
+                              "amount_usd": PACKSIZE_PRICE_USD,
+                              "confidence": parsed["confidence"]})
+        return {
+            "receipt": "ok",
+            "service": "packsize-resolver",
+            "title": title,
+            "tx_hash": tx_hash,
+            "price_usd": PACKSIZE_PRICE_USD,
+            "pack_count": parsed["pack_count"],
+            "pack_evidence": parsed["pack_evidence"],
+            "unit_size": parsed["unit_size"],
+            "unit_evidence": parsed["unit_evidence"],
+            "total_normalized": parsed["total_normalized"],
+            "unit_price": unit_price,
+            "confidence": parsed["confidence"],
+            "flags": parsed["flags"],
+            "parsed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Deterministic pack-size parse. Comparable unit pricing needs the normalized total.",
+        }
+
+    def serve_paid_packsize(self, title, price, version, payment_b64):
+        """Settle a signed x402 payment for /packsize and return the parse."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        q = f"title={title}" + (f"&price={price}" if price else "")
+        resource = f"{base_url(self)}/packsize?{q}"
+        req = x402_requirements(version, resource, PACKSIZE_AMOUNT, PACKSIZE_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result = self._packsize_result(title, price, tx_hash, payer, "x402")
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, result,
+                              {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_packsize(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        title = str(payload.get("title", "")).strip()
+        price = str(payload.get("price", "")).strip() or None
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not title:
+            return self.send_json(400, {"error": "missing_title"})
+        ok, detail = verify_packsize_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": packsize_paywall_body(self, title, price)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result = self._packsize_result(title, price, tx_hash.lower(), sender, "manual")
+        return self.send_json(200, result)
 
     def serve_paid_pack(self, size, version, payment_b64):
         """Settle a signed x402 payment for /packs/{size}."""

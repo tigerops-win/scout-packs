@@ -573,6 +573,81 @@
           }
         }
       }
+    },
+    "/packsize": {
+      "get": {
+        "summary": "Pack-size identity resolver \u2014 $0.02 USDC per call (x402, Base)",
+        "description": "Deterministic parse of a product title into pack count, unit size, and normalized totals for comparable unit pricing. Optional price param computes price per normalized unit. Paid via x402 signed settlement or POST /fulfill-packsize.",
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Product title to parse."
+          },
+          {
+            "name": "price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional package price for unit-price computation."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pack-size parse (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing title"
+          }
+        }
+      }
+    },
+    "/fulfill-packsize": {
+      "post": {
+        "summary": "Manual fulfillment for pack-size parses",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tx_hash": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tx_hash",
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Parse delivered"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
     }
   },
   "servers": [
