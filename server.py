@@ -63,6 +63,14 @@ LOOKUP_AMOUNT = 10_000  # $0.01 in 6-decimal USDC
 LOOKUP_DESC = ("B2B lead enrichment — contact lookup: enrich any company with a verified "
                "business email + source URL. One lead lookup per call. Tiger Operations.")
 
+# Email deliverability score (2026-10-05: model-consensus build #1 — every
+# sender agent needs it; no deliverability listing on PayAPI). $0.03/lookup.
+DELIVERABILITY_PRICE_USD = 0.03
+DELIVERABILITY_AMOUNT = 30_000  # $0.03 in 6-decimal USDC
+DELIVERABILITY_DESC = ("Email deliverability score — MX/SPF/DMARC checks, disposable-domain "
+                       "and role-account detection, bounce-risk score 0-100 with send/caution/"
+                       "do_not_send verdict. One email or domain per call. Tiger Operations.")
+
 # CDP Bazaar discovery extension (docs.cdp.coinbase.com/x402/bazaar; declared
 # on the wire inside each accepts[] entry per the x402 v2 bazaar schema).
 # Caveats: actual catalog indexing happens only when a payment settles through
@@ -86,6 +94,22 @@ BAZAAR_LOOKUP = bazaar_ext(
         "lead": {"type": "object"},
         "receipt": {"type": "string"},
         "verified_at": {"type": "string"}}},
+)
+
+BAZAAR_DELIVERABILITY = bazaar_ext(
+    {"queryParams": {
+        "email": {"type": "string",
+                  "description": "Email address to score (e.g. 'jane@acme.com'). Use email OR domain, not both.",
+                  "required": False},
+        "domain": {"type": "string",
+                   "description": "Domain to score (e.g. 'acme.com'). Use email OR domain, not both.",
+                   "required": False}}},
+    {"type": "object", "properties": {
+        "score": {"type": "number"},
+        "verdict": {"type": "string"},
+        "flags": {"type": "array"},
+        "checks": {"type": "object"},
+        "receipt": {"type": "string"}}},
 )
 
 BAZAAR_PACK = bazaar_ext(
@@ -528,6 +552,202 @@ def lookup_paywall_body(handler, query):
         ],
     }
 
+# ---------------------------------------------------------------- deliverability
+# Email deliverability scoring: DNS-over-HTTPS (Cloudflare) for MX/TXT,
+# plus static disposable/role/free-provider lists. Stdlib only.
+
+DOH = "https://cloudflare-dns.com/dns-query"
+
+DISPOSABLE_DOMAINS = frozenset("""
+mailinator.com guerrillamail.com 10minutemail.com tempmail.com
+temp-mail.org throwaway.email yopmail.com fakeinbox.com
+getnada.com mohmal.com sharklasers.com trashmail.com
+dispostable.com emailondeck.com mytemp.email tempmailo.com
+""".split())
+
+ROLE_LOCALPARTS = frozenset("""
+info support sales admin contact hello mail webmaster
+postmaster abuse noreply no-reply careers jobs press
+marketing billing accounts helpdesk it security privacy
+legal compliance unsubscribe newsletter office team
+""".split())
+
+FREE_PROVIDERS = frozenset("""
+gmail.com yahoo.com hotmail.com outlook.com aol.com
+icloud.com protonmail.com proton.me gmx.com zoho.com
+yandex.com live.com msn.com comcast.net
+""".split())
+
+def doh_query(name, qtype):
+    """DNS-over-HTTPS JSON lookup. Returns list of answer strings (may be empty)."""
+    try:
+        url = f"{DOH}?name={name}&type={qtype}"
+        req = urllib.request.Request(url, headers={"Accept": "application/dns-json"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode())
+        return [a.get("data", "") for a in data.get("Answer", []) if a.get("data")]
+    except Exception:
+        return []
+
+def deliverability_score(target):
+    """Score an email address or bare domain 0-100. Returns (score, verdict, flags, checks)."""
+    target = (target or "").strip().lower()
+    flags, checks = [], {}
+    if "@" in target:
+        local, _, domain = target.partition("@")
+        kind = "email"
+    else:
+        local, domain = "", target.lstrip("@")
+        kind = "domain"
+
+    # Syntax
+    syntax_ok = bool(re.fullmatch(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}", target)) if kind == "email" \
+        else bool(re.fullmatch(r"[a-z0-9.-]+\.[a-z]{2,}", domain))
+    checks["syntax_valid"] = syntax_ok
+    if not syntax_ok:
+        flags.append("invalid_syntax")
+        return 0, "do_not_send", flags, checks
+
+    score = 100
+
+    # MX records
+    mx = doh_query(domain, "MX")
+    checks["mx_records"] = [m for m in mx][:5]
+    checks["mx_found"] = bool(mx)
+    if not mx:
+        score -= 60
+        flags.append("no_mx_records")
+    else:
+        # Null MX (RFC 7505) means "accepts no mail"
+        if any(m.strip().startswith("0 ") for m in mx):
+            score -= 60
+            flags.append("null_mx_rejects_mail")
+
+    # SPF
+    txt = doh_query(domain, "TXT")
+    spf = any("v=spf1" in t for t in txt)
+    checks["spf_found"] = spf
+    if not spf:
+        score -= 10
+        flags.append("no_spf_record")
+
+    # DMARC
+    dmarc_txt = doh_query(f"_dmarc.{domain}", "TXT")
+    dmarc = any("v=dmarc1" in t.lower() for t in dmarc_txt)
+    checks["dmarc_found"] = dmarc
+    if not dmarc:
+        score -= 5
+        flags.append("no_dmarc_record")
+
+    # Disposable
+    checks["disposable"] = domain in DISPOSABLE_DOMAINS
+    if domain in DISPOSABLE_DOMAINS:
+        score = min(score, 15)
+        flags.append("disposable_domain")
+
+    # Role account
+    if kind == "email":
+        checks["role_account"] = local in ROLE_LOCALPARTS
+        if local in ROLE_LOCALPARTS:
+            score -= 15
+            flags.append("role_account")
+        checks["free_provider"] = domain in FREE_PROVIDERS
+        if domain in FREE_PROVIDERS:
+            score -= 10
+            flags.append("free_mailbox_provider")
+
+    score = max(0, min(100, score))
+    if score >= 80:
+        verdict = "send"
+    elif score >= 50:
+        verdict = "caution"
+    else:
+        verdict = "do_not_send"
+    if "no_mx_records" in flags or "null_mx_rejects_mail" in flags or "disposable_domain" in flags:
+        verdict = "do_not_send"
+    return score, verdict, flags, checks
+
+def verify_deliverability_payment(tx_hash):
+    """Returns (ok, detail) for $0.03 deliverability payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as e:
+        return (False, "tx_not_found") if e.code == 404 else (False, f"chain_lookup_failed:{e.code}")
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= DELIVERABILITY_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def deliverability_payment_terms(handler, target):
+    base = base_url(handler)
+    resource = f"{base}/deliverability?target={target}"
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(DELIVERABILITY_AMOUNT),
+        "description": DELIVERABILITY_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_DELIVERABILITY},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": DELIVERABILITY_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def deliverability_paywall_body(handler, target):
+    terms = deliverability_payment_terms(handler, target)
+    return {
+        "error": "payment_required",
+        "service": "deliverability-score",
+        "target": target,
+        "price_usd": DELIVERABILITY_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${DELIVERABILITY_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the deliverability score immediately."),
+            ("2. Manual: send exactly "
+             f"${DELIVERABILITY_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-deliverability "
+             "with {\"tx_hash\": \"0x...\", \"target\": \"" + target + "\"}"),
+            "3. Receive the deliverability score (0-100), verdict, and risk flags.",
+        ],
+    }
+
 # ---------------------------------------------------------------- server
 class Handler(BaseHTTPRequestHandler):
     server_version = "scout-packs/1.0"
@@ -608,6 +828,15 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_json(404, {"error": "no_match", "query": query,
                         "hint": "No verified contact found for this query in the current database."})
                 return self.lookup_paywall(query)
+            if path == "/deliverability":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                target = unquote_plus(params.get("email", params.get("domain", params.get("target", "")))).strip()
+                if not target:
+                    return self.send_json(400, {"error": "missing_target",
+                        "usage": "GET /deliverability?email=<address> or ?domain=<domain>",
+                        "price_usd": DELIVERABILITY_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.deliverability_paywall(target)
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
@@ -621,6 +850,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill()
             if path == "/fulfill-lookup":
                 return self.fulfill_lookup()
+            if path == "/fulfill-deliverability":
+                return self.fulfill_deliverability()
             if path == "/mcp":
                 return self.proxy_mcp()
             return self.send_json(404, {"error": "not_found"})
@@ -993,6 +1224,91 @@ table.eps td.d{{color:var(--muted)}}
             "verified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "note": "Verified business contact delivered. Source URL included for provenance.",
         }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def deliverability_paywall(self, target):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_deliverability(target, version, payment_b64)
+        body = deliverability_paywall_body(self, target)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(DELIVERABILITY_AMOUNT),
+            "resource": f"{base_url(self)}/deliverability?target={target}",
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_deliverability(self, target, version, payment_b64):
+        """Settle a signed x402 payment for /deliverability and return the score."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = f"{base_url(self)}/deliverability?target={target}"
+        req = x402_requirements(version, resource, DELIVERABILITY_AMOUNT, DELIVERABILITY_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        score, verdict, flags, checks = deliverability_score(target)
+        log_sale("deliverability", {"method": "x402", "target": target, "tx_hash": tx_hash,
+                                    "sender": payer or "unknown",
+                                    "amount_usd": DELIVERABILITY_PRICE_USD,
+                                    "score": score, "verdict": verdict,
+                                    "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "deliverability-score",
+            "target": target,
+            "tx_hash": tx_hash,
+            "price_usd": DELIVERABILITY_PRICE_USD,
+            "score": score,
+            "verdict": verdict,
+            "flags": flags,
+            "checks": checks,
+            "scored_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Deliverability score 0-100. Verdict: send / caution / do_not_send.",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_deliverability(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        target = str(payload.get("target", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not target:
+            return self.send_json(400, {"error": "missing_target"})
+        ok, detail = verify_deliverability_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": deliverability_paywall_body(self, target)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        score, verdict, flags, checks = deliverability_score(target)
+        log_sale("deliverability", {"method": "manual", "target": target,
+                                    "tx_hash": tx_hash.lower(), "sender": sender,
+                                    "amount_usd": DELIVERABILITY_PRICE_USD,
+                                    "score": score, "verdict": verdict})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "deliverability-score",
+            "target": target,
+            "tx_hash": tx_hash.lower(),
+            "price_usd": DELIVERABILITY_PRICE_USD,
+            "score": score,
+            "verdict": verdict,
+            "flags": flags,
+            "checks": checks,
+            "scored_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        })
 
     def serve_paid_pack(self, size, version, payment_b64):
         """Settle a signed x402 payment for /packs/{size}."""

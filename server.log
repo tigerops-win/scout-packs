@@ -1,0 +1,6 @@
+scout-packs on 127.0.0.1:8000  sales_enabled=False
+scout-packs on 127.0.0.1:8000  sales_enabled=True
+scout-packs on 127.0.0.1:8000  sales_enabled=True
+scout-packs on 127.0.0.1:8000  sales_enabled=True
+scout-packs on 127.0.0.1:8000  sales_enabled=True
+scout-packs on 127.0.0.1:8000  sales_enabled=True

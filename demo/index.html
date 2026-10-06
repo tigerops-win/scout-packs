@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scout Packs — Live Purchase-Loop Demo (Tiger Operations)</title>
+<style>
+  body { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background:#0b0e14; color:#d8dee9; margin:0; padding:24px; line-height:1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { color:#8ec07c; font-size:1.5em; }
+  h2 { color:#fabd2f; font-size:1.15em; margin-top:2em; }
+  .tag { display:inline-block; padding:2px 10px; border-radius:12px; font-size:0.8em; margin-bottom:8px; }
+  .live { background:#2e5e2e; color:#b8f0b8; } .example { background:#5e4a2e; color:#f0d8a8; }
+  pre { background:#11151d; border:1px solid #2a3140; border-radius:8px; padding:14px; overflow:auto; font-size:0.85em; }
+  code { color:#ebdbb2; }
+  button { background:#8ec07c; color:#0b0e14; border:0; border-radius:8px; padding:12px 22px; font-size:1em; font-weight:bold; cursor:pointer; }
+  button:hover { background:#a3d994; }
+  .step { border-left:3px solid #fabd2f; padding-left:14px; margin:18px 0; }
+  .addr { word-break: break-all; }
+  table { border-collapse:collapse; margin:12px 0; }
+  td, th { border:1px solid #2a3140; padding:8px 12px; text-align:left; }
+  th { color:#8ec07c; }
+  .warn { color:#f0554d; font-weight:bold; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Scout Packs — Live Purchase-Loop Demo</h1>
+<p>Verified B2B lead lookups at <strong>$0.10 USDC per lookup</strong> on Base.
+Buyer is an AI agent/operator. This page runs against the real production API in your browser —
+every response below comes from the live server, not a mock.</p>
+<p>Production API: <code>https://scout-packs-production.up.railway.app</code><br>
+Sales to date: <strong>0</strong> &nbsp;|&nbsp; Kill gate: <strong>5+ paid lookups from 3+ distinct wallets by Oct 16, 2026</strong></p>
+
+<h2>Step 1 — Live 402: call the real /lookup endpoint</h2>
+<div class="step">
+  <span class="tag live">LIVE — hits production in your browser</span>
+  <p>This button issues a real <code>GET /lookup?query=edison</code> to the production server.
+  Expect <strong>HTTP 402 Payment Required</strong> with the payment terms:</p>
+  <button id="go">Run live lookup (GET /lookup?query=edison)</button>
+  <p>Status: <code id="status">— not run yet —</code></p>
+  <pre id="out">Press the button. The raw server response will appear here.</pre>
+</div>
+
+<h2>Step 2 — How an agent pays $0.10 USDC on Base</h2>
+<div class="step">
+  <span class="tag live">LIVE CONFIG — values below are the server's own payment terms</span>
+  <table>
+    <tr><th>Field</th><th>Value</th></tr>
+    <tr><td>payTo (receiving address)</td><td class="addr"><code>0xaf7b70d8487ee6193701597e67f56a5902d23913</code></td></tr>
+    <tr><td>Network</td><td><code>eip155:8453</code> (Base mainnet)</td></tr>
+    <tr><td>Asset (Base native USDC)</td><td class="addr"><code>0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913</code></td></tr>
+    <tr><td>Amount</td><td><code>100000</code> atomic units = $0.10 (USDC has 6 decimals)</td></tr>
+    <tr><td>Scheme</td><td><code>exact</code> (x402 v2)</td></tr>
+  </table>
+  <ol>
+    <li>Send exactly <strong>$0.10 in USDC on Base</strong> to the payTo address above. Your wallet, your keys — one payment, no recurring charge.</li>
+    <li><code>POST /fulfill-lookup</code> with <code>{"tx_hash": "0x...", "query": "edison"}</code></li>
+    <li>Receive the verified contact (email + source URL + provenance).</li>
+  </ol>
+  <p>The server verifies the tx on-chain via Blockscout: it must be a successful Base USDC transfer of
+  ≥ $0.10 to the payTo address, mined less than 30 days ago, and each tx hash is single-use.</p>
+  <p class="warn">The demo page makes no payment itself. Paying is a human/operator action.</p>
+</div>
+
+<h2>Step 3 — What a fulfilled lookup looks like (redacted)</h2>
+<div class="step">
+  <span class="tag example">EXAMPLE — fabricated illustration, NOT a real sale</span>
+  <p class="warn">Zero sales have occurred. The block below is a mock-up showing the response SHAPE
+  of <code>/fulfill-lookup</code> on success — it is not a real customer receipt.</p>
+  <pre>{
+  "receipt": "ok",
+  "service": "lead-lookup",
+  "query": "edison",
+  "tx_hash": "0x&lt;your-payment-tx&gt;",
+  "price_usd": 0.1,
+  "lead": {
+    "company_name": "Edison Electric, Inc.",
+    "city_state": "Minneapolis, MN",
+    "category": "electrician",
+    "contact_email": "[redacted in example — delivered on payment]",
+    "source_url": "[redacted in example — delivered on payment]"
+  },
+  "verified_at": "2026-10-02T...",
+  "note": "Verified business contact delivered. Source URL included for provenance."
+}</pre>
+</div>
+
+<h2>Reproduce it yourself</h2>
+<p>Full curl walkthrough: <code>~/workspace/scout-packs/demo/walkthrough.md</code></p>
+
+</div>
+<script>
+document.getElementById('go').addEventListener('click', async () => {
+  const out = document.getElementById('out'), st = document.getElementById('status');
+  st.textContent = 'fetching…';
+  try {
+    const r = await fetch('https://scout-packs-production.up.railway.app/lookup?query=edison');
+    st.textContent = 'HTTP ' + r.status + ' ' + r.statusText;
+    st.style.color = r.status === 402 ? '#8ec07c' : '#f0554d';
+    const j = await r.json();
+    out.textContent = JSON.stringify(j, null, 2);
+  } catch (e) {
+    st.textContent = 'fetch failed';
+    out.textContent = 'ERROR: ' + e.message;
+  }
+});
+</script>
+</body>
+</html>

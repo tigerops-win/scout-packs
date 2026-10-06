@@ -501,6 +501,78 @@
           }
         }
       }
+    },
+    "/deliverability": {
+      "get": {
+        "summary": "Email deliverability score \u2014 $0.03 USDC per call (x402, Base)",
+        "description": "MX/SPF/DMARC checks, disposable-domain and role-account detection. Returns score 0-100 with send/caution/do_not_send verdict. Paid via x402 signed settlement or POST /fulfill-deliverability.",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Email address to score. Use email OR domain."
+          },
+          {
+            "name": "domain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Domain to score. Use email OR domain."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deliverability score (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing target"
+          }
+        }
+      }
+    },
+    "/fulfill-deliverability": {
+      "post": {
+        "summary": "Manual fulfillment for deliverability scores",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tx_hash": {
+                    "type": "string"
+                  },
+                  "target": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tx_hash",
+                  "target"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Score delivered"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
     }
   },
   "servers": [

@@ -1,0 +1,94 @@
+{
+  "category": "data",
+  "chains": [
+    "eip155:8453"
+  ],
+  "description": "## What it does\n\nScout Packs sells verified B2B lead packs to AI agents and operators. Every lead carries company name, contact name, title, a published business email address, and the source URL where it was found. If an email is not published, it is not in the pack. Nothing pattern-matched, nothing guessed.\n\n## Sizes and prices\n\n- 25 leads for $9 USDC — instant JSON download after payment\n- 50 leads for $15 USDC — assembled and delivered within 24 hours\n- 100 leads for $25 USDC — assembled and delivered within 24 hours\n\nOne-time purchase per pack. No subscription, no seat, no account.\n\n## How buying works\n\nEach pack is an HTTP endpoint behind an x402 paywall (USDC on Base mainnet, eip155:8453). An unpaid request returns HTTP 402 with payment terms; the agent pays and retries with the X-Payment header. No sign-up, no API key, no sales call.\n\n## Best for\n\n- Outreach agents that need a verified list for a campaign\n- Research agents that need company/contact data with provenance\n- Operators who want per-pack pricing instead of a monthly data seat",
+  "endpoints": [
+    {
+      "description": "Returns 25 verified B2B leads as JSON after x402 payment of $9 USDC on Base. Each lead: company, contact name, title, published email, source URL.",
+      "i18n": {
+        "zh-CN": {
+          "description": "在 Base 上通过 x402 支付 9 USDC 后，以 JSON 形式返回 25 条已验证的 B2B 线索。每条线索：公司、联系人姓名、职位、已发布邮箱、来源网址。",
+          "subtitle": "25 条已验证 B2B 线索，即时下载 JSON",
+          "title": "Scout Pack 25",
+          "useCase": "当智能体需要立即获取小型已验证线索名单时使用。"
+        }
+      },
+      "maxPriceUsd": 9,
+      "metered": true,
+      "method": "GET",
+      "minPriceUsd": 9,
+      "path": "/packs/25",
+      "subtitle": "25 verified B2B leads, instant JSON download",
+      "title": "Scout Pack 25",
+      "url": "https://scout-packs-production.up.railway.app/packs/25",
+      "useCase": "Use when an agent needs a small verified lead list immediately."
+    },
+    {
+      "description": "Returns 50 verified B2B leads as JSON after x402 payment of $15 USDC on Base. Assembled and verified by the operator team, delivered within 24 hours of payment confirmation.",
+      "i18n": {
+        "zh-CN": {
+          "description": "在 Base 上通过 x402 支付 15 USDC 后，以 JSON 形式返回 50 条已验证的 B2B 线索。由运营团队组装验证，在付款确认后 24 小时内交付。",
+          "subtitle": "50 条已验证 B2B 线索，24 小时内交付",
+          "title": "Scout Pack 50",
+          "useCase": "当智能体需要为营销活动获取中型已验证线索名单时使用。"
+        }
+      },
+      "maxPriceUsd": 15,
+      "metered": true,
+      "method": "GET",
+      "minPriceUsd": 15,
+      "path": "/packs/50",
+      "subtitle": "50 verified B2B leads, delivered within 24h",
+      "title": "Scout Pack 50",
+      "url": "https://scout-packs-production.up.railway.app/packs/50",
+      "useCase": "Use when an agent needs a medium verified lead list for a campaign."
+    },
+    {
+      "description": "Returns 100 verified B2B leads as JSON after x402 payment of $25 USDC on Base. Assembled and verified by the operator team, delivered within 24 hours of payment confirmation.",
+      "i18n": {
+        "zh-CN": {
+          "description": "在 Base 上通过 x402 支付 25 USDC 后，以 JSON 形式返回 100 条已验证的 B2B 线索。由运营团队组装验证，在付款确认后 24 小时内交付。",
+          "subtitle": "100 条已验证 B2B 线索，24 小时内交付",
+          "title": "Scout Pack 100",
+          "useCase": "当智能体需要为营销活动获取大型已验证线索名单时使用。"
+        }
+      },
+      "maxPriceUsd": 25,
+      "metered": true,
+      "method": "GET",
+      "minPriceUsd": 25,
+      "path": "/packs/100",
+      "subtitle": "100 verified B2B leads, delivered within 24h",
+      "title": "Scout Pack 100",
+      "url": "https://scout-packs-production.up.railway.app/packs/100",
+      "useCase": "Use when an agent needs a large verified lead list for a campaign."
+    }
+  ],
+  "featuredTags": [],
+  "fqn": "scout-packs",
+  "i18n": {
+    "zh-CN": {
+      "description": "## 能做什么\n\nScout Packs 向 AI 智能体和运营者出售已验证的 B2B 潜在客户包。每条线索包含公司名称、联系人姓名、职位、已公开发布的商务邮箱以及发现该信息的来源网址。如果邮箱未公开发布，则不会出现在包中。无推测、无猜测。\n\n## 规格与价格\n\n- 25 条线索 9 USDC — 付款后即时下载 JSON\n- 50 条线索 15 USDC — 24 小时内组装交付\n- 100 条线索 25 USDC — 24 小时内组装交付\n\n按包一次付费，无订阅、无席位、无需注册。\n\n## 购买方式\n\n每个包都是 x402 付费墙后的 HTTP 端点（Base 主网 USDC，eip155:8453）。未付款请求返回 HTTP 402 及付款条件；智能体付款后携带 X-Payment 请求头重试。无需注册、无需 API 密钥、无需销售电话。\n\n## 适合场景\n\n- 需要为营销活动获取已验证名单的外联智能体\n- 需要带来源的公司/联系人数据的研究智能体\n- 希望按包付费而非按月订阅数据席位的运营者",
+      "mainTitle": "面向 AI 智能体的已验证 B2B 潜在客户包，通过 x402 按包付费",
+      "subtitle": "面向 AI 智能体的已验证 B2B 潜在客户包，按包付费，无需订阅或 API 密钥。",
+      "title": "Scout Packs",
+      "useCase": "当智能体或运营者需要为外联或研究活动获取已验证的 B2B 潜在客户名单，且希望按包一次付费而非订阅数据席位时，使用此服务。"
+    }
+  },
+  "isFeatured": false,
+  "isFirstParty": true,
+  "mainTitle": "Verified B2B lead packs for AI agents, paid per pack via x402",
+  "serviceUrl": "https://scout-packs-production.up.railway.app",
+  "status": {
+    "catalog": "listed",
+    "gateway": "configured",
+    "payment": "mainnet",
+    "upstream": "public"
+  },
+  "subtitle": "25, 50, or 100 verified B2B leads as JSON. No subscription, no API key.",
+  "title": "Scout Packs",
+  "useCase": "Use this provider when an agent or operator needs a verified list of B2B leads for an outreach or research campaign and prefers one-time per-pack pricing over a subscription data seat.",
+  "version": 1
+}
