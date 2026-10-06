@@ -42,7 +42,12 @@ USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"  # Base native USDC, 6 
 NETWORK = "eip155:8453"
 BLOCKSCOUT = "https://base.blockscout.com/api/v2"
 REDEEMED_PATH = os.path.join(BASE_DIR, "data", "redeemed.json")
-VERIFY_PATH = os.path.join(BASE_DIR, "data", "verify.txt")  # 402index domain-verification hash
+VERIFY_PATH = os.path.join(BASE_DIR, "data", "verify.txt")  # 402index domain-verification hash (local/gitignored)
+# 402index claim 2026-10-06 for scout-packs-production.up.railway.app (72h claim;
+# verification is durable once claim/verify succeeds). Hash is public-by-design
+# (402index fetches it over HTTP); raw token is NOT committed — keep it in a
+# 600-perm file, e.g. ~/.config/scout-packs/402index-token.
+VERIFY_HASH = "b8d0f37fd646a88fac43b4e045739cddcbb8f9aa0e686ea798c51aae07741987"
 
 # Demand probe (Analyst 10-03 reprice verdict, staged 2026-10-04): all packs
 # $0.01 flat. Margin inversion vs Scout COGS is acknowledged — probe, not a
@@ -1602,6 +1607,12 @@ table.eps td.d{{color:var(--muted)}}
         return {"x402Version": 2, "sales_enabled": SALES_ENABLED, "resources": resources}
 
     def verify_file(self):
+        # 402index wants the claim's verification HASH only (64 hex chars,
+        # <1KB, no extra whitespace). Env override first, then the committed
+        # constant, then the gitignored local file.
+        h = os.environ.get("INDEX_402_VERIFICATION_HASH") or VERIFY_HASH
+        if h:
+            return self.send_text(200, h.strip())
         if os.path.exists(VERIFY_PATH):
             with open(VERIFY_PATH) as f:
                 return self.send_text(200, f.read().strip())
