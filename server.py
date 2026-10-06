@@ -146,6 +146,19 @@ BAZAAR_PACK = bazaar_ext(
         "receipt": {"type": "string"}}},
 )
 
+BAZAAR_DOMAININTEL = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain to investigate (e.g. 'acme.com'). An email address also works; the domain part is used.",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "registration": {"type": "object"},
+        "dns": {"type": "object"},
+        "domain_age_days": {"type": "number"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
 with open(os.path.join(BASE_DIR, "packs", "scout-pack-25.json")) as f:
     PACK_25 = json.load(f)
 
@@ -1000,6 +1013,202 @@ def packsize_paywall_body(handler, title, price):
         ],
     }
 
+# ---------------------------------------------------------------- domain-intel
+# Domain intelligence: RDAP registration data + DNS infrastructure signals.
+# 100% free upstreams (RDAP via rdap.org, DNS-over-HTTPS) — no API key, no
+# upstream ToS resale problem, zero marginal cost. $0.02/call. Attaches to the
+# lead-enrichment buyer workflow: an agent vetting a company/domain gets
+# registration age, registrar, and infra signals in one call. Stdlib only.
+
+DOMAININTEL_PRICE_USD = 0.02
+DOMAININTEL_AMOUNT = 20_000  # $0.02 in 6-decimal USDC
+DOMAININTEL_DESC = ("Domain intelligence — RDAP registration data (registrar, "
+                    "creation/expiry dates, status) plus DNS infrastructure signals "
+                    "(nameservers, A records, mail exchanger presence). One domain "
+                    "per call. Tiger Operations.")
+
+PRIVACY_REGISTRAR_HINTS = ("privacy", "whoisguard", "whois guard", "domains by proxy",
+                           "redacted", "withheld", "private", "guard")
+
+def rdap_lookup(domain):
+    """RDAP query via the rdap.org proxy. Returns parsed dict or {} on failure."""
+    try:
+        req = urllib.request.Request(f"https://rdap.org/domain/{domain}",
+                                     headers={"Accept": "application/rdap+json"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read().decode())
+    except Exception:
+        return {}
+
+def _vcard_fn(vcard_array):
+    """Extract fn/org values from an RDAP vcardArray."""
+    out = {}
+    try:
+        for item in (vcard_array or [])[1]:
+            if not isinstance(item, list) or len(item) < 4:
+                continue
+            name, value = item[0], item[3]
+            if name in ("fn", "org") and value and name not in out:
+                out[name] = value
+    except Exception:
+        pass
+    return out
+
+def domain_intel(domain):
+    """Build domain intelligence. Returns (intel dict, flags list)."""
+    raw = (domain or "").strip().lower()
+    if "@" in raw:
+        raw = raw.partition("@")[2]
+    raw = raw.strip()
+    intel = {"domain": raw}
+    flags = []
+    if not re.fullmatch(r"[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}", raw):
+        return intel, ["invalid_domain"]
+
+    # RDAP registration data
+    rdap = rdap_lookup(raw)
+    reg = {}
+    if rdap:
+        for ent in rdap.get("entities", []) or []:
+            roles = ent.get("roles", []) or []
+            vc = _vcard_fn(ent.get("vcardArray"))
+            if "registrar" in roles:
+                reg["registrar"] = vc.get("fn") or vc.get("org") or ent.get("handle", "")
+            elif "registrant" in roles and vc.get("org"):
+                reg["registrant_org"] = vc["org"]
+        for ev in rdap.get("events", []) or []:
+            action = ev.get("eventAction", "")
+            date = (ev.get("eventDate", "") or "")[:10]
+            if action == "registration" and date:
+                reg["created"] = date
+            elif action == "expiration" and date:
+                reg["expires"] = date
+            elif action == "last changed" and date:
+                reg["updated"] = date
+        statuses = [str(s).strip() for s in (rdap.get("status", []) or [])]
+        if statuses:
+            reg["status"] = statuses[:8]
+    intel["registration"] = reg
+    if not reg:
+        flags.append("rdap_unavailable")
+
+    # Domain-age signal
+    if reg.get("created"):
+        try:
+            created_ts = time.mktime(time.strptime(reg["created"], "%Y-%m-%d"))
+            age_days = int((time.time() - created_ts) // 86400)
+            intel["domain_age_days"] = age_days
+            if age_days < 365:
+                flags.append("young_domain_lt_1y")
+            if age_days < 90:
+                flags.append("very_young_domain_lt_90d")
+        except Exception:
+            pass
+    registrar_l = (reg.get("registrar") or "").lower()
+    if any(h in registrar_l for h in PRIVACY_REGISTRAR_HINTS):
+        flags.append("privacy_protected_registrant")
+
+    # DNS infrastructure signals (reuse Cloudflare DoH)
+    ns = [n.rstrip(".") for n in doh_query(raw, "NS")]
+    a = doh_query(raw, "A")
+    mx = doh_query(raw, "MX")
+    intel["dns"] = {
+        "nameservers": ns[:6],
+        "nameserver_count": len(ns),
+        "a_records": a[:6],
+        "a_record_count": len(a),
+        "mx_found": bool(mx),
+        "mx_hosts": [m.split(None, 1)[-1].rstrip(".") for m in mx][:3] if mx else [],
+    }
+    if not ns and not a:
+        flags.append("no_dns_records")
+    if not mx:
+        flags.append("no_mail_exchangers")
+
+    intel["signals"] = flags
+    return intel, flags
+
+def verify_domainintel_payment(tx_hash):
+    """Returns (ok, detail) for $0.02 domain-intel payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as e:
+        return (False, "tx_not_found") if e.code == 404 else (False, f"chain_lookup_failed:{e.code}")
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= DOMAININTEL_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def domainintel_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = f"{base}/domain-intel?domain={domain}"
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(DOMAININTEL_AMOUNT),
+        "description": DOMAININTEL_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_DOMAININTEL},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": DOMAININTEL_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def domainintel_paywall_body(handler, domain):
+    terms = domainintel_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "domain-intel",
+        "domain": domain,
+        "price_usd": DOMAININTEL_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${DOMAININTEL_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the domain intelligence immediately."),
+            ("2. Manual: send exactly "
+             f"${DOMAININTEL_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-domain-intel "
+             "with {\"tx_hash\": \"0x...\", \"domain\": \"" + domain + "\"}"),
+            "3. Receive RDAP registration data, DNS infrastructure signals, and risk flags.",
+        ],
+    }
+
 # ---------------------------------------------------------------- server
 class Handler(BaseHTTPRequestHandler):
     server_version = "scout-packs/1.0"
@@ -1099,6 +1308,15 @@ class Handler(BaseHTTPRequestHandler):
                         "usage": "GET /packsize?title=<product title>&price=<optional package price>",
                         "price_usd": PACKSIZE_PRICE_USD, "currency": "USDC", "network": NETWORK})
                 return self.packsize_paywall(title, price)
+            if path == "/domain-intel":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /domain-intel?domain=<domain>",
+                        "price_usd": DOMAININTEL_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.domainintel_paywall(domain)
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
@@ -1116,6 +1334,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_deliverability()
             if path == "/fulfill-packsize":
                 return self.fulfill_packsize()
+            if path == "/fulfill-domain-intel":
+                return self.fulfill_domainintel()
             if path == "/mcp":
                 return self.proxy_mcp()
             return self.send_json(404, {"error": "not_found"})
@@ -1357,6 +1577,25 @@ table.eps td.d{{color:var(--muted)}}
             "extensions": {"bazaar": BAZAAR_LOOKUP},
         }
         resources.append({"resource": f"{base}/lookup", "accepts": [lookup_accept]})
+        # Per-call service endpoints (added 2026-10-05; previously missing from
+        # the manifest — registries ingesting /.well-known/x402 couldn't see them).
+        for svc_path, amount, desc, bazaar in (
+            ("/deliverability", DELIVERABILITY_AMOUNT, DELIVERABILITY_DESC, BAZAAR_DELIVERABILITY),
+            ("/packsize", PACKSIZE_AMOUNT, PACKSIZE_DESC, BAZAAR_PACKSIZE),
+            ("/domain-intel", DOMAININTEL_AMOUNT, DOMAININTEL_DESC, BAZAAR_DOMAININTEL),
+        ):
+            resources.append({"resource": f"{base}{svc_path}", "accepts": [{
+                "scheme": "exact",
+                "network": NETWORK,
+                "amount": str(amount),
+                "description": desc,
+                "mimeType": "application/json",
+                "payTo": RECEIVING if SALES_ENABLED else ZERO,
+                "maxTimeoutSeconds": 300,
+                "asset": USDC_BASE,
+                "extra": {"name": "USD Coin", "version": "2"},
+                "extensions": {"bazaar": bazaar},
+            }]})
         for s, p in PACKS.items():
             t = payment_terms(self, s)
             resources.append({"resource": f"{base}/packs/{s}", "accepts": t["accepts"]})
@@ -1572,6 +1811,83 @@ table.eps td.d{{color:var(--muted)}}
             "flags": flags,
             "checks": checks,
             "scored_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        })
+
+    def domainintel_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_domainintel(domain, version, payment_b64)
+        body = domainintel_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(DOMAININTEL_AMOUNT),
+            "resource": f"{base_url(self)}/domain-intel?domain={domain}",
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_domainintel(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /domain-intel and return the intel."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = f"{base_url(self)}/domain-intel?domain={domain}"
+        req = x402_requirements(version, resource, DOMAININTEL_AMOUNT, DOMAININTEL_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        intel, flags = domain_intel(domain)
+        log_sale("domain-intel", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": DOMAININTEL_PRICE_USD,
+                                  "flags": flags,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "domain-intel",
+            "tx_hash": tx_hash,
+            "price_usd": DOMAININTEL_PRICE_USD,
+            **intel,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "RDAP registration data + DNS infrastructure signals. Upstreams: rdap.org, Cloudflare DoH.",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_domainintel(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_domainintel_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": domainintel_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        intel, flags = domain_intel(domain)
+        log_sale("domain-intel", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": DOMAININTEL_PRICE_USD,
+                                  "flags": flags})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "domain-intel",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": DOMAININTEL_PRICE_USD,
+            **intel,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
 
     def packsize_paywall(self, title, price):
