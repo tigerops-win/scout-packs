@@ -366,6 +366,20 @@ def dns(domain: str) -> str:
 
 
 @mcp.tool()
+def subdomains(domain: str) -> str:
+    """Map a domain's live subdomain footprint from Certificate Transparency
+    logs, classified into intent categories (api/dev, commerce, careers,
+    docs/support, marketing, status/infra, staging/test). $0.02 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: subdomains(domain="acme.com")"""
+    return _x402_instructions(
+        "Subdomain intelligence", "/subdomains", "/fulfill-subdomains",
+        "domain", domain,
+        "Receive the subdomain footprint with intent categories.",
+        "subdomains")
+
+
+@mcp.tool()
 def repo_health(repo: str) -> str:
     """Check a public GitHub repo's health: stars, forks, open issues, license,
     archive status and 90-day commit velocity. $0.01 USDC per call.

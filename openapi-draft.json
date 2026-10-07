@@ -616,6 +616,48 @@
         }
       }
     },
+    "/subdomains": {
+      "get": {
+        "summary": "Subdomain intelligence \u2014 $0.02 USDC per call (x402, Base)",
+        "description": "Live subdomain footprint from Certificate Transparency logs (crt.sh), classified into intent categories (api/dev, commerce, careers, docs/support, marketing, status/infra, staging/test). One domain per call. Paid via x402 signed settlement or POST /fulfill-subdomains. Zero upstream cost (free public CT database, no key).",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Domain to map (e.g. 'acme.com')."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subdomain footprint (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing domain"
+          }
+        }
+      }
+    },
+    "/fulfill-subdomains": {
+      "post": {
+        "summary": "Fulfill /subdomains after manual USDC transfer",
+        "description": "POST {\"tx_hash\": \"0x...\", \"domain\": \"acme.com\"} after sending $0.02 USDC on Base.",
+        "responses": {
+          "200": {
+            "description": "Subdomain footprint (paid)"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
+    },
     "/packsize": {
       "get": {
         "summary": "Pack-size identity resolver \u2014 $0.02 USDC per call (x402, Base)",

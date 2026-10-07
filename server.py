@@ -233,6 +233,21 @@ BAZAAR_DNS = bazaar_ext(
         "receipt": {"type": "string"}}},
 )
 
+BAZAAR_SUBDOMAINS = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain to map the subdomain footprint for (e.g. 'acme.com').",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "domain": {"type": "string"},
+        "count": {"type": "number"},
+        "subdomains": {"type": "array"},
+        "categories": {"type": "object"},
+        "wildcard_detected": {"type": "boolean"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
 BAZAAR_REPOHEALTH = bazaar_ext(
     {"queryParams": {
         "repo": {"type": "string",
@@ -1842,6 +1857,15 @@ REPOHEALTH_PRICE_USD = 0.01
 REPOHEALTH_AMOUNT = 10000  # $0.01 in 6-decimal USDC
 REPOHEALTH_DESC = ("GitHub repo health — stars, forks, open issues, license, archive status and 90-day commit velocity for a public repository. One repo per call. Tiger Operations.")
 
+# ---------------------------------------------------------------- wave-3 endpoints (2026-10-07)
+# /subdomains ($0.02), /contact-page ($0.02), /mail-provider ($0.01).
+# 100% free upstreams (crt.sh CT logs, target's own public site, Cloudflare DoH),
+# zero marginal cost. Same x402 v1+v2 + manual-tx wiring as wave-2.
+
+SUBDOMAINS_PRICE_USD = 0.02
+SUBDOMAINS_AMOUNT = 20000  # $0.02 in 6-decimal USDC
+SUBDOMAINS_DESC = ("Subdomain intelligence — live subdomain footprint from Certificate Transparency logs (crt.sh), classified into intent categories (api/dev, commerce, careers, docs/support, marketing, status/infra, staging/test). One domain per call. Tiger Operations.")
+
 def verify_sslcheck_payment(tx_hash):
     """Returns (ok, detail) for $0.01 ssl-check payments."""
     if not SALES_ENABLED:
@@ -2082,6 +2106,72 @@ def repo_health(repo):
     return result, flags
 
 
+_SUBDOMAIN_BUCKETS = {
+    "api_dev": ("api", "apis", "dev", "developer", "developers", "sdk", "sandbox",
+                "graphql", "rest", "ws", "websocket"),
+    "commerce": ("shop", "store", "cart", "checkout", "pay", "payments", "billing",
+                 "order", "orders", "buy"),
+    "careers": ("careers", "jobs", "hiring", "talent", "recruiting", "work"),
+    "docs_support": ("docs", "doc", "support", "help", "knowledge", "kb", "faq",
+                     "wiki", "guide", "guides", "learn"),
+    "marketing": ("blog", "news", "press", "media", "go", "landing", "pages",
+                  "brand", "events", "webinar"),
+    "infra_status": ("status", "health", "monitor", "monitoring", "uptime",
+                     "ops", "sre", "metrics", "grafana"),
+    "staging_test": ("staging", "stage", "test", "testing", "qa", "uat", "preview",
+                     "beta", "canary", "demo", "dev-", "develop", "sandbox-"),
+}
+
+_SUBDOMAIN_CAP = 500
+
+
+def subdomain_intel(domain):
+    """Subdomain footprint via crt.sh Certificate Transparency logs (free, no key)."""
+    d, valid = _normalize_domain(domain)
+    flags = {"invalid_domain": not valid, "crt_query_failed": False,
+             "result_truncated": False}
+    result = {"domain": d, "count": 0, "subdomains": [],
+              "categories": {k: [] for k in list(_SUBDOMAIN_BUCKETS) + ["other"]},
+              "wildcard_detected": False}
+    if not valid:
+        return result, flags
+    try:
+        rows = fetch_json("https://crt.sh/?q=%25." + d + "&output=json", timeout=10)
+    except Exception:
+        flags["crt_query_failed"] = True
+        return result, flags
+    if not isinstance(rows, list):
+        flags["crt_query_failed"] = True
+        return result, flags
+    seen = set()
+    for row in rows:
+        names = str((row or {}).get("name_value") or "")
+        for name in names.split("\n"):
+            name = name.strip().lower()
+            if name.startswith("*."):
+                result["wildcard_detected"] = True
+                name = name[2:]
+            if not name or name == d or not name.endswith("." + d):
+                continue
+            seen.add(name)
+    ordered = sorted(seen)
+    if len(ordered) > _SUBDOMAIN_CAP:
+        flags["result_truncated"] = True
+        ordered = ordered[:_SUBDOMAIN_CAP]
+    result["subdomains"] = ordered
+    result["count"] = len(ordered)
+    apex_parts = d.split(".")
+    for sub in ordered:
+        labels = sub.split(".")[:-len(apex_parts)] if len(sub.split(".")) > len(apex_parts) else sub.split(".")
+        bucket = "other"
+        for bname, keywords in _SUBDOMAIN_BUCKETS.items():
+            if any(kw in label for label in labels for kw in keywords):
+                bucket = bname
+                break
+        result["categories"][bucket].append(sub)
+    return result, flags
+
+
 def verify_headers_payment(tx_hash):
     """Returns (ok, detail) for $0.01 headers payments."""
     if not SALES_ENABLED:
@@ -2241,6 +2331,87 @@ def dns_paywall_body(handler, domain):
              (RECEIVING if SALES_ENABLED else "(address pending)") + ", then POST /fulfill-dns "
              'with {"tx_hash": "0x...", "domain": "' + domain + '"}'),
             "3. Receive the dns result.",
+        ],
+    }
+
+def verify_subdomains_payment(tx_hash):
+    """Returns (ok, detail) for $0.02 subdomains payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, "chain_lookup_failed:" + str(ex.code))
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= SUBDOMAINS_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def subdomains_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = base + "/subdomains?domain=" + domain
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(SUBDOMAINS_AMOUNT),
+        "description": SUBDOMAINS_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_SUBDOMAINS},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": SUBDOMAINS_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def subdomains_paywall_body(handler, domain):
+    terms = subdomains_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "subdomains",
+        "domain": domain,
+        "price_usd": SUBDOMAINS_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             "${price:.2f} USDC on Base to ".format(price=SUBDOMAINS_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + " and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             "${price:.2f} USDC on Base to ".format(price=SUBDOMAINS_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + ", then POST /fulfill-subdomains "
+             'with {"tx_hash": "0x...", "domain": "' + domain + '"}'),
+            "3. Receive the subdomain footprint with intent categories.",
         ],
     }
 
@@ -2478,6 +2649,15 @@ class Handler(BaseHTTPRequestHandler):
                         "usage": "GET /dns?domain=<domain>",
                         "price_usd": DNS_PRICE_USD, "currency": "USDC", "network": NETWORK})
                 return self.dns_paywall(domain)
+            if path == "/subdomains":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", "")).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /subdomains?domain=<domain>",
+                        "price_usd": SUBDOMAINS_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.subdomains_paywall(domain)
             if path == "/repo-health":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
@@ -2516,6 +2696,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_headers()
             if path == "/fulfill-dns":
                 return self.fulfill_dns()
+            if path == "/fulfill-subdomains":
+                return self.fulfill_subdomains()
             if path == "/fulfill-repo-health":
                 return self.fulfill_repohealth()
             if path == "/mcp":
@@ -2760,6 +2942,8 @@ table.eps td.d{{color:var(--muted)}}
                      "description": "Full DNS record dump (A, AAAA, MX, TXT, NS, CNAME) via DNS-over-HTTPS."},
                     {"path": "/repo-health", "price_usd": REPOHEALTH_PRICE_USD,
                      "description": "GitHub repo health: stars, forks, open issues, license, 90-day commit velocity."},
+                    {"path": "/subdomains", "price_usd": SUBDOMAINS_PRICE_USD,
+                     "description": "Subdomain intelligence: CT-log footprint classified into intent categories."},
                 ],
                 "currency": "USDC", "network": NETWORK,
                 "sales_enabled": SALES_ENABLED}
@@ -2794,6 +2978,7 @@ table.eps td.d{{color:var(--muted)}}
             ("/headers", HEADERS_AMOUNT, HEADERS_DESC, BAZAAR_HEADERS),
             ("/dns", DNS_AMOUNT, DNS_DESC, BAZAAR_DNS),
             ("/repo-health", REPOHEALTH_AMOUNT, REPOHEALTH_DESC, BAZAAR_REPOHEALTH),
+            ("/subdomains", SUBDOMAINS_AMOUNT, SUBDOMAINS_DESC, BAZAAR_SUBDOMAINS),
         ):
             resources.append({"resource": f"{base}{svc_path}", "accepts": [{
                 "scheme": "exact",
@@ -3515,6 +3700,88 @@ table.eps td.d{{color:var(--muted)}}
             "signals": signals,
             "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "note": "Cloudflare DNS-over-HTTPS (free public resolver, no key).",
+        })
+
+    def subdomains_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_subdomains(domain, version, payment_b64)
+        body = subdomains_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(SUBDOMAINS_AMOUNT),
+            "resource": base_url(self) + "/subdomains?domain=" + domain,
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_subdomains(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /subdomains and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = base_url(self) + "/subdomains?domain=" + domain
+        req = x402_requirements(version, resource, SUBDOMAINS_AMOUNT, SUBDOMAINS_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = subdomain_intel(domain)
+        signals = _active_flags(flags)
+        log_sale("subdomains", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": SUBDOMAINS_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "subdomains",
+            "tx_hash": tx_hash,
+            "price_usd": SUBDOMAINS_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "crt.sh Certificate Transparency logs (free public database, no key).",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_subdomains(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_subdomains_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": subdomains_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = subdomain_intel(domain)
+        signals = _active_flags(flags)
+        log_sale("subdomains", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": SUBDOMAINS_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "subdomains",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": SUBDOMAINS_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "crt.sh Certificate Transparency logs (free public database, no key).",
         })
 
     def repohealth_paywall(self, repo):
