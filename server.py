@@ -248,6 +248,23 @@ BAZAAR_SUBDOMAINS = bazaar_ext(
         "receipt": {"type": "string"}}},
 )
 
+BAZAAR_CONTACTPAGE = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain whose public contact surface to extract (e.g. 'acme.com').",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "domain": {"type": "string"},
+        "emails": {"type": "array"},
+        "phones": {"type": "array"},
+        "has_contact_form": {"type": "boolean"},
+        "contact_form_url": {"type": "string"},
+        "address": {"type": "object"},
+        "social_links": {"type": "array"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
 BAZAAR_REPOHEALTH = bazaar_ext(
     {"queryParams": {
         "repo": {"type": "string",
@@ -1866,6 +1883,10 @@ SUBDOMAINS_PRICE_USD = 0.02
 SUBDOMAINS_AMOUNT = 20000  # $0.02 in 6-decimal USDC
 SUBDOMAINS_DESC = ("Subdomain intelligence — live subdomain footprint from Certificate Transparency logs (crt.sh), classified into intent categories (api/dev, commerce, careers, docs/support, marketing, status/infra, staging/test). One domain per call. Tiger Operations.")
 
+CONTACTPAGE_PRICE_USD = 0.02
+CONTACTPAGE_AMOUNT = 20000  # $0.02 in 6-decimal USDC
+CONTACTPAGE_DESC = ("Public contact extraction — published emails (role vs personal), phone numbers, contact-form presence, address and social links from a company's own public website (homepage + contact/about pages). One domain per call. Tiger Operations.")
+
 def verify_sslcheck_payment(tx_hash):
     """Returns (ok, detail) for $0.01 ssl-check payments."""
     if not SALES_ENABLED:
@@ -2172,6 +2193,113 @@ def subdomain_intel(domain):
     return result, flags
 
 
+_CONTACT_PATHS = ["", "/contact", "/contact-us", "/about"]
+_CONTACT_UA = "TigerOps-ContactBot/1.0 (+contact via Scout Packs)"
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+_PHONE_RE = re.compile(r"\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
+_ROLE_LOCALS = {"info", "sales", "support", "contact", "careers", "press", "hello",
+                "help", "service", "admin", "office", "team", "marketing", "bizdev",
+                "partners", "media", "hr", "jobs", "general", "enquiries"}
+_SOCIAL_DOMAINS = ("linkedin.com", "twitter.com", "x.com", "facebook.com",
+                   "instagram.com", "youtube.com", "github.com")
+
+
+def _fetch_contact_page(url):
+    """Fetch one public page; returns (html, final_url) or (None, '')."""
+    req = urllib.request.Request(
+        url, headers={"User-Agent": _CONTACT_UA,
+                      "Accept": "text/html,application/xhtml+xml"})
+    with urllib.request.urlopen(req, timeout=8) as r:
+        body = r.read(512 * 1024)
+        charset = r.headers.get_content_charset() or "utf-8"
+        return body.decode(charset, "replace"), r.geturl()
+    return None, ""
+
+
+def contact_extract(domain):
+    """Published contact surface from a company's own public website (free, no key)."""
+    d, valid = _normalize_domain(domain)
+    flags = {"invalid_domain": not valid, "fetch_failed": False,
+             "bot_blocked": False, "no_contact_found": False}
+    result = {"domain": d, "emails": [], "phones": [],
+              "has_contact_form": False, "contact_form_url": "",
+              "address": {}, "social_links": [], "pages_checked": []}
+    if not valid:
+        return result, flags
+    pages = []
+    attempts = 0
+    for path in _CONTACT_PATHS:
+        if len(pages) >= 3 or attempts >= 4:
+            break
+        attempts += 1
+        url = "https://" + d + path
+        try:
+            html, final_url = _fetch_contact_page(url)
+        except urllib.error.HTTPError as ex:
+            if ex.code in (401, 403):
+                flags["bot_blocked"] = True
+            continue
+        except Exception:
+            continue
+        if not html:
+            continue
+        pages.append((final_url or url, html))
+    if not pages:
+        flags["fetch_failed"] = True
+        return result, flags
+    result["pages_checked"] = [u for u, _ in pages]
+    emails, phones, socials = set(), set(), set()
+    for url, html in pages:
+        for m in _EMAIL_RE.finditer(html):
+            em = m.group(0).lower().rstrip(".")
+            if em.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",
+                            ".css", ".js")):
+                continue
+            local = em.split("@")[0]
+            kind = "role" if local in _ROLE_LOCALS else "personal"
+            emails.add((em, kind))
+        for m in _PHONE_RE.finditer(html):
+            ph = re.sub(r"[^\d+]", "", m.group(0))
+            digits = re.sub(r"\D", "", ph)
+            if len(digits) in (10, 11):
+                phones.add(ph)
+        low = html.lower()
+        if ("<form" in low and ("contact" in low or "mailto:" in low)):
+            result["has_contact_form"] = True
+            if not result["contact_form_url"]:
+                result["contact_form_url"] = url
+        for sm in re.finditer(r'href=["\'](https?://[^"\']+)["\']', html):
+            href = sm.group(1).lower()
+            if any(s in href for s in _SOCIAL_DOMAINS):
+                socials.add(href.split("?")[0])
+        # JSON-LD Organization address
+        for jm in re.finditer(
+                r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+                html, re.S | re.I):
+            try:
+                blob = json.loads(jm.group(1))
+            except Exception:
+                continue
+            objs = blob if isinstance(blob, list) else [blob]
+            for obj in objs:
+                if not isinstance(obj, dict):
+                    continue
+                addr = obj.get("address")
+                if isinstance(addr, dict) and not result["address"]:
+                    result["address"] = {
+                        k: str(v) for k, v in addr.items()
+                        if k in ("streetAddress", "addressLocality",
+                                 "addressRegion", "postalCode", "addressCountry")
+                        and v}
+    email_list = [{"email": e, "kind": k} for e, k in sorted(emails)][:25]
+    result["emails"] = email_list
+    result["phones"] = sorted(phones)[:10]
+    result["social_links"] = sorted(socials)[:12]
+    if not email_list and not result["phones"] and not result["has_contact_form"]:
+        flags["no_contact_found"] = True
+    return result, flags
+
+
 def verify_headers_payment(tx_hash):
     """Returns (ok, detail) for $0.01 headers payments."""
     if not SALES_ENABLED:
@@ -2412,6 +2540,87 @@ def subdomains_paywall_body(handler, domain):
              (RECEIVING if SALES_ENABLED else "(address pending)") + ", then POST /fulfill-subdomains "
              'with {"tx_hash": "0x...", "domain": "' + domain + '"}'),
             "3. Receive the subdomain footprint with intent categories.",
+        ],
+    }
+
+def verify_contactpage_payment(tx_hash):
+    """Returns (ok, detail) for $0.02 contact-page payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, "chain_lookup_failed:" + str(ex.code))
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= CONTACTPAGE_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def contactpage_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = base + "/contact-page?domain=" + domain
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(CONTACTPAGE_AMOUNT),
+        "description": CONTACTPAGE_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_CONTACTPAGE},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": CONTACTPAGE_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def contactpage_paywall_body(handler, domain):
+    terms = contactpage_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "contact-page",
+        "domain": domain,
+        "price_usd": CONTACTPAGE_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             "${price:.2f} USDC on Base to ".format(price=CONTACTPAGE_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + " and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             "${price:.2f} USDC on Base to ".format(price=CONTACTPAGE_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + ", then POST /fulfill-contact-page "
+             'with {"tx_hash": "0x...", "domain": "' + domain + '"}'),
+            "3. Receive the published contact surface (emails, phones, forms, address).",
         ],
     }
 
@@ -2658,6 +2867,15 @@ class Handler(BaseHTTPRequestHandler):
                         "usage": "GET /subdomains?domain=<domain>",
                         "price_usd": SUBDOMAINS_PRICE_USD, "currency": "USDC", "network": NETWORK})
                 return self.subdomains_paywall(domain)
+            if path == "/contact-page":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", "")).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /contact-page?domain=<domain>",
+                        "price_usd": CONTACTPAGE_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.contactpage_paywall(domain)
             if path == "/repo-health":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
@@ -2698,6 +2916,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_dns()
             if path == "/fulfill-subdomains":
                 return self.fulfill_subdomains()
+            if path == "/fulfill-contact-page":
+                return self.fulfill_contactpage()
             if path == "/fulfill-repo-health":
                 return self.fulfill_repohealth()
             if path == "/mcp":
@@ -2944,6 +3164,8 @@ table.eps td.d{{color:var(--muted)}}
                      "description": "GitHub repo health: stars, forks, open issues, license, 90-day commit velocity."},
                     {"path": "/subdomains", "price_usd": SUBDOMAINS_PRICE_USD,
                      "description": "Subdomain intelligence: CT-log footprint classified into intent categories."},
+                    {"path": "/contact-page", "price_usd": CONTACTPAGE_PRICE_USD,
+                     "description": "Public contact extraction: published emails, phones, forms, address, socials."},
                 ],
                 "currency": "USDC", "network": NETWORK,
                 "sales_enabled": SALES_ENABLED}
@@ -2979,6 +3201,7 @@ table.eps td.d{{color:var(--muted)}}
             ("/dns", DNS_AMOUNT, DNS_DESC, BAZAAR_DNS),
             ("/repo-health", REPOHEALTH_AMOUNT, REPOHEALTH_DESC, BAZAAR_REPOHEALTH),
             ("/subdomains", SUBDOMAINS_AMOUNT, SUBDOMAINS_DESC, BAZAAR_SUBDOMAINS),
+            ("/contact-page", CONTACTPAGE_AMOUNT, CONTACTPAGE_DESC, BAZAAR_CONTACTPAGE),
         ):
             resources.append({"resource": f"{base}{svc_path}", "accepts": [{
                 "scheme": "exact",
@@ -3782,6 +4005,88 @@ table.eps td.d{{color:var(--muted)}}
             "signals": signals,
             "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "note": "crt.sh Certificate Transparency logs (free public database, no key).",
+        })
+
+    def contactpage_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_contactpage(domain, version, payment_b64)
+        body = contactpage_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(CONTACTPAGE_AMOUNT),
+            "resource": base_url(self) + "/contact-page?domain=" + domain,
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_contactpage(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /contact-page and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = base_url(self) + "/contact-page?domain=" + domain
+        req = x402_requirements(version, resource, CONTACTPAGE_AMOUNT, CONTACTPAGE_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = contact_extract(domain)
+        signals = _active_flags(flags)
+        log_sale("contact-page", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": CONTACTPAGE_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "contact-page",
+            "tx_hash": tx_hash,
+            "price_usd": CONTACTPAGE_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Target company's own public website (homepage + contact/about pages).",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_contactpage(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_contactpage_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": contactpage_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = contact_extract(domain)
+        signals = _active_flags(flags)
+        log_sale("contact-page", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": CONTACTPAGE_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "contact-page",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": CONTACTPAGE_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Target company's own public website (homepage + contact/about pages).",
         })
 
     def repohealth_paywall(self, repo):

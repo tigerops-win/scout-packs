@@ -658,6 +658,48 @@
         }
       }
     },
+    "/contact-page": {
+      "get": {
+        "summary": "Public contact extraction \u2014 $0.02 USDC per call (x402, Base)",
+        "description": "Published emails (role vs personal), phone numbers, contact-form presence, address and social links from a company's own public website (homepage + contact/about pages). One domain per call. Paid via x402 signed settlement or POST /fulfill-contact-page. Zero upstream cost (target's own public site, no key).",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Domain to extract (e.g. 'acme.com')."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact surface (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing domain"
+          }
+        }
+      }
+    },
+    "/fulfill-contact-page": {
+      "post": {
+        "summary": "Fulfill /contact-page after manual USDC transfer",
+        "description": "POST {\"tx_hash\": \"0x...\", \"domain\": \"acme.com\"} after sending $0.02 USDC on Base.",
+        "responses": {
+          "200": {
+            "description": "Contact surface (paid)"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
+    },
     "/packsize": {
       "get": {
         "summary": "Pack-size identity resolver \u2014 $0.02 USDC per call (x402, Base)",

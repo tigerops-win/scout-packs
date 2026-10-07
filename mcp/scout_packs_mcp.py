@@ -380,6 +380,20 @@ def subdomains(domain: str) -> str:
 
 
 @mcp.tool()
+def contact_page(domain: str) -> str:
+    """Extract a company's published contact surface from its own public
+    website: emails (role vs personal), phone numbers, contact-form presence,
+    address and social links. $0.02 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: contact_page(domain="acme.com")"""
+    return _x402_instructions(
+        "Public contact extraction", "/contact-page", "/fulfill-contact-page",
+        "domain", domain,
+        "Receive the published contact surface.",
+        "contact_page")
+
+
+@mcp.tool()
 def repo_health(repo: str) -> str:
     """Check a public GitHub repo's health: stars, forks, open issues, license,
     archive status and 90-day commit velocity. $0.01 USDC per call.
