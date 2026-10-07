@@ -574,6 +574,48 @@
         }
       }
     },
+    "/dns": {
+      "get": {
+        "summary": "DNS record dump \u2014 $0.01 USDC per call (x402, Base)",
+        "description": "A, AAAA, MX, TXT, NS and CNAME records via Cloudflare DNS-over-HTTPS, plus SPF presence signal. One domain per call. Paid via x402 signed settlement or POST /fulfill-dns. Zero upstream cost (free public DoH, no key).",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Domain to dump (e.g. 'acme.com')."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DNS dump (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing domain"
+          }
+        }
+      }
+    },
+    "/fulfill-dns": {
+      "post": {
+        "summary": "Fulfill /dns after manual USDC transfer",
+        "description": "POST {\"tx_hash\": \"0x...\", \"domain\": \"acme.com\"} after sending $0.01 USDC on Base.",
+        "responses": {
+          "200": {
+            "description": "DNS dump (paid)"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
+    },
     "/packsize": {
       "get": {
         "summary": "Pack-size identity resolver \u2014 $0.02 USDC per call (x402, Base)",
@@ -842,6 +884,48 @@
         }
       }
     },
+    "/headers": {
+      "get": {
+        "summary": "Security headers audit \u2014 $0.01 USDC per call (x402, Base)",
+        "description": "Checks HSTS, CSP, X-Frame-Options and 5 more security headers on a domain's HTTPS response, with 0-100 score and A-F grade. One domain per call. Paid via x402 signed settlement or POST /fulfill-headers. Zero upstream cost (target's own response headers).",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Domain to audit (e.g. 'acme.com')."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Header audit (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing domain"
+          }
+        }
+      }
+    },
+    "/fulfill-headers": {
+      "post": {
+        "summary": "Fulfill /headers after manual USDC transfer",
+        "description": "POST {\"tx_hash\": \"0x...\", \"domain\": \"acme.com\"} after sending $0.01 USDC on Base.",
+        "responses": {
+          "200": {
+            "description": "Header audit (paid)"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
+    },
     "/ssl-check": {
       "get": {
         "summary": "Domain intelligence \u2014 $0.02 USDC per call (x402, Base)",
@@ -900,6 +984,48 @@
         "responses": {
           "200": {
             "description": "Intelligence delivered"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
+    },
+    "/repo-health": {
+      "get": {
+        "summary": "GitHub repo health \u2014 $0.01 USDC per call (x402, Base)",
+        "description": "Stars, forks, open issues, license, archive status and 90-day commit velocity for a public repo. One repo per call. Paid via x402 signed settlement or POST /fulfill-repo-health. Zero upstream cost (GitHub public REST API, no key).",
+        "parameters": [
+          {
+            "name": "repo",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Repo as owner/name (e.g. 'octocat/hello-world')."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repo health (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing repo"
+          }
+        }
+      }
+    },
+    "/fulfill-repo-health": {
+      "post": {
+        "summary": "Fulfill /repo-health after manual USDC transfer",
+        "description": "POST {\"tx_hash\": \"0x...\", \"repo\": \"octocat/hello-world\"} after sending $0.01 USDC on Base.",
+        "responses": {
+          "200": {
+            "description": "Repo health (paid)"
           },
           "402": {
             "description": "Payment not verified"

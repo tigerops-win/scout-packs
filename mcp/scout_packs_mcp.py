@@ -339,6 +339,44 @@ def ssl_check(domain: str) -> str:
         "ssl_check")
 
 
+@mcp.tool()
+def headers(domain: str) -> str:
+    """Audit a domain's HTTP security headers (HSTS, CSP, X-Frame-Options and
+    more) with a 0-100 score and A-F grade. $0.01 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: headers(domain="acme.com")"""
+    return _x402_instructions(
+        "Security headers audit", "/headers", "/fulfill-headers",
+        "domain", domain,
+        "Receive the header audit with score and grade.",
+        "headers")
+
+
+@mcp.tool()
+def dns(domain: str) -> str:
+    """Dump a domain's DNS records (A, AAAA, MX, TXT, NS, CNAME) via
+    DNS-over-HTTPS, plus SPF presence signal. $0.01 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: dns(domain="acme.com")"""
+    return _x402_instructions(
+        "DNS record dump", "/dns", "/fulfill-dns",
+        "domain", domain,
+        "Receive the full DNS record dump.",
+        "dns")
+
+
+@mcp.tool()
+def repo_health(repo: str) -> str:
+    """Check a public GitHub repo's health: stars, forks, open issues, license,
+    archive status and 90-day commit velocity. $0.01 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: repo_health(repo="octocat/hello-world")"""
+    return _x402_instructions(
+        "GitHub repo health", "/repo-health", "/fulfill-repo-health",
+        "repo", repo,
+        "Receive the repo health signals.",
+        "repo_health")
+
 def main() -> None:
     """Entry point for the `scout-packs-mcp` console script (uvx/pipx)."""
     mcp.run()

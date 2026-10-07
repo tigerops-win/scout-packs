@@ -207,6 +207,47 @@ BAZAAR_SSLCHECK = bazaar_ext(
         "receipt": {"type": "string"}}},
 )
 
+BAZAAR_HEADERS = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain to audit (e.g. 'acme.com').",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "domain": {"type": "string"},
+        "score": {"type": "number"},
+        "grade": {"type": "string"},
+        "present": {"type": "object"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
+BAZAAR_DNS = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain to dump DNS records for (e.g. 'acme.com').",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "domain": {"type": "string"},
+        "records": {"type": "object"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
+BAZAAR_REPOHEALTH = bazaar_ext(
+    {"queryParams": {
+        "repo": {"type": "string",
+                 "description": "GitHub repo as owner/name (e.g. 'octocat/hello-world').",
+                 "required": True}}},
+    {"type": "object", "properties": {
+        "repo": {"type": "string"},
+        "stars": {"type": "number"},
+        "forks": {"type": "number"},
+        "open_issues": {"type": "number"},
+        "commits_last_90d": {"type": "number"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
 with open(os.path.join(BASE_DIR, "packs", "scout-pack-25.json")) as f:
     PACK_25 = json.load(f)
 
@@ -1262,7 +1303,7 @@ def domainintel_paywall_body(handler, domain):
 # (target's own web server / TLS handshake, Cloudflare DoH), zero marginal cost.
 # Same x402 v1+v2 + manual-tx wiring as domain-intel. Added 2026-10-06.
 from html.parser import HTMLParser  # noqa: E402  (stdlib, for tech-stack parsing)
-from datetime import datetime, timezone  # noqa: E402
+from datetime import datetime, timezone, timedelta  # noqa: E402
 from email.utils import parsedate_to_datetime  # noqa: E402
 
 def _active_flags(flags):
@@ -1791,6 +1832,16 @@ SSLCHECK_PRICE_USD = 0.01
 SSLCHECK_AMOUNT = 10000  # $0.01 in 6-decimal USDC
 SSLCHECK_DESC = ("SSL/TLS certificate check — issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed) for a domain's HTTPS certificate. One domain per call. Tiger Operations.")
 
+HEADERS_PRICE_USD = 0.01
+HEADERS_AMOUNT = 10000  # $0.01 in 6-decimal USDC
+HEADERS_DESC = ("Security headers audit — checks HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP and CORP on a domain's HTTPS response, with a 0-100 score and A-F grade. One domain per call. Tiger Operations.")
+DNS_PRICE_USD = 0.01
+DNS_AMOUNT = 10000  # $0.01 in 6-decimal USDC
+DNS_DESC = ("DNS record dump — A, AAAA, MX, TXT, NS and CNAME records for a domain via DNS-over-HTTPS, plus SPF presence signal. One domain per call. Tiger Operations.")
+REPOHEALTH_PRICE_USD = 0.01
+REPOHEALTH_AMOUNT = 10000  # $0.01 in 6-decimal USDC
+REPOHEALTH_DESC = ("GitHub repo health — stars, forks, open issues, license, archive status and 90-day commit velocity for a public repository. One repo per call. Tiger Operations.")
+
 def verify_sslcheck_payment(tx_hash):
     """Returns (ok, detail) for $0.01 ssl-check payments."""
     if not SALES_ENABLED:
@@ -1869,6 +1920,408 @@ def sslcheck_paywall_body(handler, domain):
              f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-ssl-check "
              "with {\"tx_hash\": \"0x...\", \"domain\": \"" + domain + "\"}"),
             "3. Receive certificate details and risk flags.",
+        ],
+    }
+
+# ---------------------------------------------------------------- wave-2 penny endpoints
+# headers / dns / repo-health: $0.01/call each, 100% free upstreams
+# (target's own HTTPS response headers, Cloudflare DoH, GitHub public REST API),
+# zero marginal cost. Same x402 v1+v2 + manual-tx wiring as ssl-check. Added 2026-10-06.
+
+SECURITY_HEADERS = [
+    ("strict-transport-security", "HSTS"),
+    ("content-security-policy", "CSP"),
+    ("x-frame-options", "X-Frame-Options"),
+    ("x-content-type-options", "X-Content-Type-Options"),
+    ("referrer-policy", "Referrer-Policy"),
+    ("permissions-policy", "Permissions-Policy"),
+    ("cross-origin-opener-policy", "COOP"),
+    ("cross-origin-resource-policy", "CORP"),
+]
+
+
+def security_headers(domain):
+    """Fetch a domain's HTTPS response headers and score security-header presence."""
+    d, valid = _normalize_domain(domain)
+    flags = {"invalid_domain": not valid, "request_failed": False}
+    result = {"domain": d, "final_url": "", "score": 0, "grade": "F",
+              "present": {}, "headers": {}}
+    if not valid:
+        return result, flags
+    raw, final_url = {}, ""
+    for method in ("HEAD", "GET"):
+        try:
+            req = urllib.request.Request(
+                "https://" + d + "/",
+                headers={"User-Agent": "scout-packs/1.0 (+security-headers-audit)"},
+                method=method)
+            with urllib.request.urlopen(req, timeout=15) as r:
+                raw = {str(k).lower(): str(v) for k, v in r.headers.items()}
+                final_url = r.geturl()
+            break
+        except Exception:
+            continue
+    if not raw:
+        flags["request_failed"] = True
+        return result, flags
+    present = {}
+    for header, label in SECURITY_HEADERS:
+        ok = header in raw and bool(raw[header].strip())
+        present[label] = ok
+        if not ok:
+            flags["missing_" + label.lower().replace("-", "_")] = True
+    score = round(100 * sum(present.values()) / len(SECURITY_HEADERS))
+    grade = ("A" if score >= 90 else "B" if score >= 75 else "C" if score >= 50
+             else "D" if score >= 25 else "F")
+    result.update({"final_url": final_url,
+                   "headers": {h: raw[h] for h, _ in SECURITY_HEADERS if h in raw},
+                   "present": present, "score": score, "grade": grade})
+    return result, flags
+
+
+_DOH_TYPES = ["A", "AAAA", "MX", "TXT", "NS", "CNAME"]
+
+
+def _doh_query(name, rtype):
+    req = urllib.request.Request(
+        "https://cloudflare-dns.com/dns-query?name=" + name + "&type=" + rtype,
+        headers={"Accept": "application/dns-json",
+                 "User-Agent": "scout-packs/1.0 (+dns-dump)"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        data = json.loads(r.read().decode("utf-8", "replace"))
+    out = []
+    for a in data.get("Answer", []) or []:
+        out.append({"name": a.get("name"), "ttl": a.get("TTL"),
+                    "data": a.get("data")})
+    return out
+
+
+def dns_dump(domain):
+    """Full DNS record dump via Cloudflare DNS-over-HTTPS (free, no key)."""
+    d, valid = _normalize_domain(domain)
+    flags = {"invalid_domain": not valid, "lookup_failed": False}
+    result = {"domain": d, "records": {t: [] for t in _DOH_TYPES}}
+    if not valid:
+        return result, flags
+    try:
+        for t in _DOH_TYPES:
+            try:
+                result["records"][t] = _doh_query(d, t)
+            except Exception:
+                result["records"][t] = []
+    except Exception:
+        flags["lookup_failed"] = True
+        return result, flags
+    rec = result["records"]
+    if not rec["A"] and not rec["AAAA"]:
+        flags["no_address_records"] = True
+    if not rec["MX"]:
+        flags["no_mx"] = True
+    spf = any("v=spf1" in (a.get("data") or "").lower() for a in rec["TXT"])
+    flags["has_spf"] = spf
+    if not spf:
+        flags["no_spf"] = True
+    return result, flags
+
+
+_REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+
+
+def _gh_get(url):
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "scout-packs/1.0 (+repo-health)",
+                      "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
+def repo_health(repo):
+    """GitHub repo signals via the public REST API (no key, 60 req/hr unauthenticated)."""
+    repo = str(repo or "").strip()
+    valid = bool(_REPO_RE.fullmatch(repo))
+    flags = {"invalid_repo": not valid, "request_failed": False, "not_found": False}
+    result = {"repo": repo}
+    if not valid:
+        return result, flags
+    try:
+        info = _gh_get("https://api.github.com/repos/" + repo)
+    except urllib.error.HTTPError as ex:
+        flags["not_found" if ex.code == 404 else "request_failed"] = True
+        return result, flags
+    except Exception:
+        flags["request_failed"] = True
+        return result, flags
+    since = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    commits_90d = None
+    try:
+        commits = _gh_get("https://api.github.com/repos/" + repo +
+                          "/commits?since=" + since + "&per_page=100")
+        commits_90d = len(commits) if isinstance(commits, list) else None
+        if commits_90d == 100:
+            flags["velocity_is_lower_bound"] = True
+    except Exception:
+        pass
+    lic = info.get("license") or {}
+    result.update({
+        "full_name": info.get("full_name"),
+        "description": (info.get("description") or "")[:280],
+        "stars": info.get("stargazers_count"),
+        "forks": info.get("forks_count"),
+        "open_issues": info.get("open_issues_count"),
+        "license": lic.get("spdx_id") or lic.get("name"),
+        "default_branch": info.get("default_branch"),
+        "created_at": info.get("created_at"),
+        "pushed_at": info.get("pushed_at"),
+        "archived": info.get("archived"),
+        "commits_last_90d": commits_90d,
+    })
+    if commits_90d == 0:
+        flags["no_commits_90d"] = True
+    if info.get("archived"):
+        flags["archived"] = True
+    return result, flags
+
+
+def verify_headers_payment(tx_hash):
+    """Returns (ok, detail) for $0.01 headers payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, "chain_lookup_failed:" + str(ex.code))
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= HEADERS_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def headers_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = base + "/headers?domain=" + domain
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(HEADERS_AMOUNT),
+        "description": HEADERS_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_HEADERS},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": HEADERS_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def headers_paywall_body(handler, domain):
+    terms = headers_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "headers",
+        "domain": domain,
+        "price_usd": HEADERS_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             "${price:.2f} USDC on Base to ".format(price=HEADERS_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + " and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             "${price:.2f} USDC on Base to ".format(price=HEADERS_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + ", then POST /fulfill-headers "
+             'with {"tx_hash": "0x...", "domain": "' + domain + '"}'),
+            "3. Receive the headers result.",
+        ],
+    }
+
+def verify_dns_payment(tx_hash):
+    """Returns (ok, detail) for $0.01 dns payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, "chain_lookup_failed:" + str(ex.code))
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= DNS_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def dns_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = base + "/dns?domain=" + domain
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(DNS_AMOUNT),
+        "description": DNS_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_DNS},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": DNS_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def dns_paywall_body(handler, domain):
+    terms = dns_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "dns",
+        "domain": domain,
+        "price_usd": DNS_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             "${price:.2f} USDC on Base to ".format(price=DNS_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + " and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             "${price:.2f} USDC on Base to ".format(price=DNS_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + ", then POST /fulfill-dns "
+             'with {"tx_hash": "0x...", "domain": "' + domain + '"}'),
+            "3. Receive the dns result.",
+        ],
+    }
+
+def verify_repohealth_payment(tx_hash):
+    """Returns (ok, detail) for $0.01 repo-health payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, "chain_lookup_failed:" + str(ex.code))
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= REPOHEALTH_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def repohealth_payment_terms(handler, repo):
+    base = base_url(handler)
+    resource = base + "/repo-health?repo=" + repo
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(REPOHEALTH_AMOUNT),
+        "description": REPOHEALTH_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_REPOHEALTH},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": REPOHEALTH_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def repohealth_paywall_body(handler, repo):
+    terms = repohealth_payment_terms(handler, repo)
+    return {
+        "error": "payment_required",
+        "service": "repo-health",
+        "repo": repo,
+        "price_usd": REPOHEALTH_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             "${price:.2f} USDC on Base to ".format(price=REPOHEALTH_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + " and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             "${price:.2f} USDC on Base to ".format(price=REPOHEALTH_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + ", then POST /fulfill-repo-health "
+             'with {"tx_hash": "0x...", "repo": "' + repo + '"}'),
+            "3. Receive the repo-health result.",
         ],
     }
 
@@ -2007,6 +2460,33 @@ class Handler(BaseHTTPRequestHandler):
                         "usage": "GET /ssl-check?domain=<domain>",
                         "price_usd": SSLCHECK_PRICE_USD, "currency": "USDC", "network": NETWORK})
                 return self.sslcheck_paywall(domain)
+            if path == "/headers":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", "")).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /headers?domain=<domain>",
+                        "price_usd": HEADERS_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.headers_paywall(domain)
+            if path == "/dns":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", "")).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /dns?domain=<domain>",
+                        "price_usd": DNS_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.dns_paywall(domain)
+            if path == "/repo-health":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                repo = unquote_plus(params.get("repo", "")).strip()
+                if not repo:
+                    return self.send_json(400, {"error": "missing_repo",
+                        "usage": "GET /repo-health?repo=<owner>/<repo>",
+                        "price_usd": REPOHEALTH_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.repohealth_paywall(repo)
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
@@ -2032,6 +2512,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_emailpattern()
             if path == "/fulfill-ssl-check":
                 return self.fulfill_sslcheck()
+            if path == "/fulfill-headers":
+                return self.fulfill_headers()
+            if path == "/fulfill-dns":
+                return self.fulfill_dns()
+            if path == "/fulfill-repo-health":
+                return self.fulfill_repohealth()
             if path == "/mcp":
                 return self.proxy_mcp()
             return self.send_json(404, {"error": "not_found"})
@@ -2268,6 +2754,12 @@ table.eps td.d{{color:var(--muted)}}
                      "description": "Likely corporate email patterns + MX verification."},
                     {"path": "/ssl-check", "price_usd": SSLCHECK_PRICE_USD,
                      "description": "SSL/TLS certificate details and risk flags."},
+                    {"path": "/headers", "price_usd": HEADERS_PRICE_USD,
+                     "description": "Security headers audit: HSTS, CSP, X-Frame-Options etc., scored with A-F grade."},
+                    {"path": "/dns", "price_usd": DNS_PRICE_USD,
+                     "description": "Full DNS record dump (A, AAAA, MX, TXT, NS, CNAME) via DNS-over-HTTPS."},
+                    {"path": "/repo-health", "price_usd": REPOHEALTH_PRICE_USD,
+                     "description": "GitHub repo health: stars, forks, open issues, license, 90-day commit velocity."},
                 ],
                 "currency": "USDC", "network": NETWORK,
                 "sales_enabled": SALES_ENABLED}
@@ -2299,6 +2791,9 @@ table.eps td.d{{color:var(--muted)}}
             ("/tech-stack", TECHSTACK_AMOUNT, TECHSTACK_DESC, BAZAAR_TECHSTACK),
             ("/email-pattern", EMAILPATTERN_AMOUNT, EMAILPATTERN_DESC, BAZAAR_EMAILPATTERN),
             ("/ssl-check", SSLCHECK_AMOUNT, SSLCHECK_DESC, BAZAAR_SSLCHECK),
+            ("/headers", HEADERS_AMOUNT, HEADERS_DESC, BAZAAR_HEADERS),
+            ("/dns", DNS_AMOUNT, DNS_DESC, BAZAAR_DNS),
+            ("/repo-health", REPOHEALTH_AMOUNT, REPOHEALTH_DESC, BAZAAR_REPOHEALTH),
         ):
             resources.append({"resource": f"{base}{svc_path}", "accepts": [{
                 "scheme": "exact",
@@ -2856,6 +3351,252 @@ table.eps td.d{{color:var(--muted)}}
             "signals": signals,
             "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "note": "Live TLS handshake with the domain. No upstream API.",
+        })
+
+    def headers_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_headers(domain, version, payment_b64)
+        body = headers_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(HEADERS_AMOUNT),
+            "resource": base_url(self) + "/headers?domain=" + domain,
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_headers(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /headers and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = base_url(self) + "/headers?domain=" + domain
+        req = x402_requirements(version, resource, HEADERS_AMOUNT, HEADERS_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = security_headers(domain)
+        signals = _active_flags(flags)
+        log_sale("headers", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": HEADERS_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "headers",
+            "tx_hash": tx_hash,
+            "price_usd": HEADERS_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Pure HTTPS fetch of the domain's own public response headers. No upstream API.",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_headers(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_headers_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": headers_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = security_headers(domain)
+        signals = _active_flags(flags)
+        log_sale("headers", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": HEADERS_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "headers",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": HEADERS_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Pure HTTPS fetch of the domain's own public response headers. No upstream API.",
+        })
+
+    def dns_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_dns(domain, version, payment_b64)
+        body = dns_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(DNS_AMOUNT),
+            "resource": base_url(self) + "/dns?domain=" + domain,
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_dns(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /dns and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = base_url(self) + "/dns?domain=" + domain
+        req = x402_requirements(version, resource, DNS_AMOUNT, DNS_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = dns_dump(domain)
+        signals = _active_flags(flags)
+        log_sale("dns", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": DNS_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "dns",
+            "tx_hash": tx_hash,
+            "price_usd": DNS_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Cloudflare DNS-over-HTTPS (free public resolver, no key).",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_dns(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_dns_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": dns_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = dns_dump(domain)
+        signals = _active_flags(flags)
+        log_sale("dns", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": DNS_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "dns",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": DNS_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Cloudflare DNS-over-HTTPS (free public resolver, no key).",
+        })
+
+    def repohealth_paywall(self, repo):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_repohealth(repo, version, payment_b64)
+        body = repohealth_paywall_body(self, repo)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(REPOHEALTH_AMOUNT),
+            "resource": base_url(self) + "/repo-health?repo=" + repo,
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_repohealth(self, repo, version, payment_b64):
+        """Settle a signed x402 payment for /repo-health and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = base_url(self) + "/repo-health?repo=" + repo
+        req = x402_requirements(version, resource, REPOHEALTH_AMOUNT, REPOHEALTH_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = repo_health(repo)
+        signals = _active_flags(flags)
+        log_sale("repo-health", {"method": "x402", "repo": repo, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": REPOHEALTH_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "repo-health",
+            "tx_hash": tx_hash,
+            "price_usd": REPOHEALTH_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "GitHub public REST API (no key, unauthenticated rate limit).",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_repohealth(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        repo = str(payload.get("repo", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not repo:
+            return self.send_json(400, {"error": "missing_repo"})
+        ok, detail = verify_repohealth_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": repohealth_paywall_body(self, repo)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = repo_health(repo)
+        signals = _active_flags(flags)
+        log_sale("repo-health", {"method": "manual", "repo": repo,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": REPOHEALTH_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "repo-health",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": REPOHEALTH_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "GitHub public REST API (no key, unauthenticated rate limit).",
         })
 
     def packsize_paywall(self, title, price):
