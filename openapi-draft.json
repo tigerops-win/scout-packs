@@ -700,6 +700,48 @@
         }
       }
     },
+    "/mail-provider": {
+      "get": {
+        "summary": "Email provider identification \u2014 $0.01 USDC per call (x402, Base)",
+        "description": "Mailbox host (Google Workspace, Microsoft 365, Zoho, Proton and more) plus gateway detection (Mimecast, Proofpoint, Barracuda) from MX records via DNS-over-HTTPS. One domain per call. Paid via x402 signed settlement or POST /fulfill-mail-provider. Zero upstream cost (free public DoH, no key).",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Domain to identify (e.g. 'acme.com')."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider identification (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing domain"
+          }
+        }
+      }
+    },
+    "/fulfill-mail-provider": {
+      "post": {
+        "summary": "Fulfill /mail-provider after manual USDC transfer",
+        "description": "POST {\"tx_hash\": \"0x...\", \"domain\": \"acme.com\"} after sending $0.01 USDC on Base.",
+        "responses": {
+          "200": {
+            "description": "Provider identification (paid)"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
+    },
     "/packsize": {
       "get": {
         "summary": "Pack-size identity resolver \u2014 $0.02 USDC per call (x402, Base)",

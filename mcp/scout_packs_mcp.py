@@ -394,6 +394,20 @@ def contact_page(domain: str) -> str:
 
 
 @mcp.tool()
+def mail_provider(domain: str) -> str:
+    """Identify a domain's email provider: mailbox host (Google Workspace,
+    Microsoft 365, Zoho, Proton and more) plus gateway detection (Mimecast,
+    Proofpoint, Barracuda) from MX records. $0.01 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: mail_provider(domain="acme.com")"""
+    return _x402_instructions(
+        "Email provider identification", "/mail-provider", "/fulfill-mail-provider",
+        "domain", domain,
+        "Receive the mailbox-host identification with confidence.",
+        "mail_provider")
+
+
+@mcp.tool()
 def repo_health(repo: str) -> str:
     """Check a public GitHub repo's health: stars, forks, open issues, license,
     archive status and 90-day commit velocity. $0.01 USDC per call.

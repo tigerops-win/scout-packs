@@ -265,6 +265,23 @@ BAZAAR_CONTACTPAGE = bazaar_ext(
         "receipt": {"type": "string"}}},
 )
 
+BAZAAR_MAILPROVIDER = bazaar_ext(
+    {"queryParams": {
+        "domain": {"type": "string",
+                   "description": "Domain to identify the email provider for (e.g. 'acme.com').",
+                   "required": True}}},
+    {"type": "object", "properties": {
+        "domain": {"type": "string"},
+        "provider": {"type": "string"},
+        "confidence": {"type": "string"},
+        "mx_hosts": {"type": "array"},
+        "is_gateway": {"type": "boolean"},
+        "gateway": {"type": "string"},
+        "multi_provider": {"type": "boolean"},
+        "signals": {"type": "array"},
+        "receipt": {"type": "string"}}},
+)
+
 BAZAAR_REPOHEALTH = bazaar_ext(
     {"queryParams": {
         "repo": {"type": "string",
@@ -1887,6 +1904,10 @@ CONTACTPAGE_PRICE_USD = 0.02
 CONTACTPAGE_AMOUNT = 20000  # $0.02 in 6-decimal USDC
 CONTACTPAGE_DESC = ("Public contact extraction — published emails (role vs personal), phone numbers, contact-form presence, address and social links from a company's own public website (homepage + contact/about pages). One domain per call. Tiger Operations.")
 
+MAILPROVIDER_PRICE_USD = 0.01
+MAILPROVIDER_AMOUNT = 10000  # $0.01 in 6-decimal USDC
+MAILPROVIDER_DESC = ("Email provider identification — mailbox host (Google Workspace, Microsoft 365, Zoho, Proton, etc.) plus gateway detection (Mimecast, Proofpoint, Barracuda) from MX records via DNS-over-HTTPS. One domain per call. Tiger Operations.")
+
 def verify_sslcheck_payment(tx_hash):
     """Returns (ok, detail) for $0.01 ssl-check payments."""
     if not SALES_ENABLED:
@@ -2300,6 +2321,89 @@ def contact_extract(domain):
     return result, flags
 
 
+# Ordered: first match wins per MX host. Substrings matched against the
+# lowercased MX hostname.
+PROVIDER_PATTERNS = (
+    ("google_workspace", ("aspmx.l.google.com", "googlemail.com",
+                           "aspmx2.googlemail.com", "aspmx3.googlemail.com",
+                           "gmail-smtp-in.l.google.com")),
+    ("microsoft_365", (".mail.protection.outlook.com",
+                        ".olc.protection.outlook.com", ".onmicrosoft.com")),
+    ("zoho", ("mx.zoho.com", "mx2.zoho.com", "mx3.zoho.com",
+               "smtpin.zoho.com", "zoho.com")),
+    ("proton", ("mail.protonmail.ch", "mailsec.protonmail.ch",
+                "protonmail.ch")),
+    ("fastmail", ("messagingengine.com",)),
+    ("icloud", ("mail.icloud.com",)),
+    ("godaddy", ("smtp.secureserver.net",)),
+    ("namecheap_privateemail", ("privateemail.com",)),
+    ("rackspace", ("emailsrvr.com",)),
+    ("ovh", ("mx1.mail.ovh.net", "mx2.mail.ovh.net", "mx3.mail.ovh.net")),
+    ("amazon_ses", ("amazonses.com",)),
+)
+
+GATEWAY_PATTERNS = (
+    ("mimecast", ("mimecast.com",)),
+    ("proofpoint", ("pphosted.com",)),
+    ("barracuda", ("barracudanetworks.com", "barracuda.com")),
+    ("cloudflare_email", ("em.secureserver.net", "mx.cloudflare.net")),
+)
+
+
+def mail_provider(domain):
+    """Mailbox-host identification from MX records via Cloudflare DoH (free, no key)."""
+    d, valid = _normalize_domain(domain)
+    flags = {"invalid_domain": not valid, "dns_query_failed": False,
+             "no_mx": False}
+    result = {"domain": d, "provider": "unknown", "confidence": "low",
+              "mx_hosts": [], "is_gateway": False, "gateway": "",
+              "multi_provider": False}
+    if not valid:
+        return result, flags
+    try:
+        mx = [str(h).lower().rstrip(".") for h in doh_query(d, "MX")]
+    except Exception:
+        flags["dns_query_failed"] = True
+        return result, flags
+    mx = [h for h in mx if h]
+    result["mx_hosts"] = mx
+    if not mx:
+        flags["no_mx"] = True
+        return result, flags
+    # Gateway detection is separate from the mailbox host.
+    for gname, pats in GATEWAY_PATTERNS:
+        if any(p in h for h in mx for p in pats):
+            result["is_gateway"] = True
+            result["gateway"] = gname
+            break
+    votes = []
+    for h in mx:
+        match = None
+        for pname, pats in PROVIDER_PATTERNS:
+            if any(p in h for p in pats):
+                match = pname
+                break
+        if match is None:
+            # Self-hosted heuristic: MX under the domain itself, or a bare IP.
+            if h == d or h.endswith("." + d) or re.fullmatch(r"\d+\.\d+\.\d+\.\d+", h):
+                match = "self_hosted"
+            else:
+                match = "unknown"
+        votes.append(match)
+    distinct = set(votes)
+    if len(distinct) == 1:
+        result["provider"] = votes[0]
+        result["confidence"] = "high"
+    else:
+        # Majority vote; conflicting providers -> multi_provider.
+        top = max(distinct, key=votes.count)
+        result["provider"] = top
+        result["multi_provider"] = True
+        result["confidence"] = ("medium" if votes.count(top) > len(votes) / 2
+                                else "low")
+    return result, flags
+
+
 def verify_headers_payment(tx_hash):
     """Returns (ok, detail) for $0.01 headers payments."""
     if not SALES_ENABLED:
@@ -2624,6 +2728,87 @@ def contactpage_paywall_body(handler, domain):
         ],
     }
 
+def verify_mailprovider_payment(tx_hash):
+    """Returns (ok, detail) for $0.01 mail-provider payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, "chain_lookup_failed:" + str(ex.code))
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= MAILPROVIDER_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def mailprovider_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = base + "/mail-provider?domain=" + domain
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(MAILPROVIDER_AMOUNT),
+        "description": MAILPROVIDER_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_MAILPROVIDER},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": MAILPROVIDER_DESC, "mimeType": "application/json"},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def mailprovider_paywall_body(handler, domain):
+    terms = mailprovider_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "mail-provider",
+        "domain": domain,
+        "price_usd": MAILPROVIDER_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             "${price:.2f} USDC on Base to ".format(price=MAILPROVIDER_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + " and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             "${price:.2f} USDC on Base to ".format(price=MAILPROVIDER_PRICE_USD) +
+             (RECEIVING if SALES_ENABLED else "(address pending)") + ", then POST /fulfill-mail-provider "
+             'with {"tx_hash": "0x...", "domain": "' + domain + '"}'),
+            "3. Receive the mailbox-host identification with confidence.",
+        ],
+    }
+
 def verify_repohealth_payment(tx_hash):
     """Returns (ok, detail) for $0.01 repo-health payments."""
     if not SALES_ENABLED:
@@ -2876,6 +3061,15 @@ class Handler(BaseHTTPRequestHandler):
                         "usage": "GET /contact-page?domain=<domain>",
                         "price_usd": CONTACTPAGE_PRICE_USD, "currency": "USDC", "network": NETWORK})
                 return self.contactpage_paywall(domain)
+            if path == "/mail-provider":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", "")).strip()
+                if not domain:
+                    return self.send_json(400, {"error": "missing_domain",
+                        "usage": "GET /mail-provider?domain=<domain>",
+                        "price_usd": MAILPROVIDER_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                return self.mailprovider_paywall(domain)
             if path == "/repo-health":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
@@ -2918,6 +3112,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_subdomains()
             if path == "/fulfill-contact-page":
                 return self.fulfill_contactpage()
+            if path == "/fulfill-mail-provider":
+                return self.fulfill_mailprovider()
             if path == "/fulfill-repo-health":
                 return self.fulfill_repohealth()
             if path == "/mcp":
@@ -3166,6 +3362,8 @@ table.eps td.d{{color:var(--muted)}}
                      "description": "Subdomain intelligence: CT-log footprint classified into intent categories."},
                     {"path": "/contact-page", "price_usd": CONTACTPAGE_PRICE_USD,
                      "description": "Public contact extraction: published emails, phones, forms, address, socials."},
+                    {"path": "/mail-provider", "price_usd": MAILPROVIDER_PRICE_USD,
+                     "description": "Email provider identification: mailbox host + gateway from MX records."},
                 ],
                 "currency": "USDC", "network": NETWORK,
                 "sales_enabled": SALES_ENABLED}
@@ -3202,6 +3400,7 @@ table.eps td.d{{color:var(--muted)}}
             ("/repo-health", REPOHEALTH_AMOUNT, REPOHEALTH_DESC, BAZAAR_REPOHEALTH),
             ("/subdomains", SUBDOMAINS_AMOUNT, SUBDOMAINS_DESC, BAZAAR_SUBDOMAINS),
             ("/contact-page", CONTACTPAGE_AMOUNT, CONTACTPAGE_DESC, BAZAAR_CONTACTPAGE),
+            ("/mail-provider", MAILPROVIDER_AMOUNT, MAILPROVIDER_DESC, BAZAAR_MAILPROVIDER),
         ):
             resources.append({"resource": f"{base}{svc_path}", "accepts": [{
                 "scheme": "exact",
@@ -4087,6 +4286,88 @@ table.eps td.d{{color:var(--muted)}}
             "signals": signals,
             "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "note": "Target company's own public website (homepage + contact/about pages).",
+        })
+
+    def mailprovider_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_mailprovider(domain, version, payment_b64)
+        body = mailprovider_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(MAILPROVIDER_AMOUNT),
+            "resource": base_url(self) + "/mail-provider?domain=" + domain,
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_mailprovider(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /mail-provider and return the result."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = base_url(self) + "/mail-provider?domain=" + domain
+        req = x402_requirements(version, resource, MAILPROVIDER_AMOUNT, MAILPROVIDER_DESC)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result, flags = mail_provider(domain)
+        signals = _active_flags(flags)
+        log_sale("mail-provider", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": MAILPROVIDER_PRICE_USD,
+                                  "signals": signals,
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "mail-provider",
+            "tx_hash": tx_hash,
+            "price_usd": MAILPROVIDER_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Cloudflare DNS-over-HTTPS MX lookup (free public resolver, no key).",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_mailprovider(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_mailprovider_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": mailprovider_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result, flags = mail_provider(domain)
+        signals = _active_flags(flags)
+        log_sale("mail-provider", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": MAILPROVIDER_PRICE_USD,
+                                  "signals": signals})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "mail-provider",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": MAILPROVIDER_PRICE_USD,
+            **result,
+            "signals": signals,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Cloudflare DNS-over-HTTPS MX lookup (free public resolver, no key).",
         })
 
     def repohealth_paywall(self, repo):
