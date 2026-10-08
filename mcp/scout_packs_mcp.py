@@ -228,7 +228,7 @@ def lookup_lead(query: str) -> str:
     lines.append("")
     accepts = (body.get("x402", {}) or {}).get("accepts", [{}])[0]
     pay_to = accepts.get("payTo", "")
-    amount_raw = accepts.get("maxAmountRequired", "10000")
+    amount_raw = accepts.get("amount", accepts.get("maxAmountRequired", "10000"))
     try:
         amount_usdc = int(amount_raw) / 1_000_000
     except (TypeError, ValueError):
@@ -275,7 +275,7 @@ def _x402_instructions(title: str, path: str, fulfill_path: str,
     lines.append("")
     accepts = (body.get("x402", {}) or {}).get("accepts", [{}])[0]
     pay_to = accepts.get("payTo", "")
-    amount_raw = accepts.get("maxAmountRequired", "10000")
+    amount_raw = accepts.get("amount", accepts.get("maxAmountRequired", "10000"))
     try:
         amount_usdc = int(amount_raw) / 1_000_000
     except (TypeError, ValueError):
@@ -475,7 +475,7 @@ def packsize(title: str, price: str = "") -> str:
     lines.append("")
     accepts = (body.get("x402", {}) or {}).get("accepts", [{}])[0]
     pay_to = accepts.get("payTo", "")
-    amount_raw = accepts.get("maxAmountRequired", "20000")
+    amount_raw = accepts.get("amount", accepts.get("maxAmountRequired", "20000"))
     try:
         amount_usdc = int(amount_raw) / 1_000_000
     except (TypeError, ValueError):
