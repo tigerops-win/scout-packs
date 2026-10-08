@@ -85,216 +85,267 @@ PACKSIZE_DESC = ("Pack-size identity resolver — parse a product title into pac
                  "unit size, and normalized totals for comparable unit pricing. "
                  "Deterministic, no customer data needed. Tiger Operations.")
 
-# CDP Bazaar discovery extension (docs.cdp.coinbase.com/x402/bazaar; declared
-# on the wire inside each accepts[] entry per the x402 v2 bazaar schema).
-# Caveats: actual catalog indexing happens only when a payment settles through
-# the CDP facilitator (our fulfill flow is manual/on-chain today), and CDP
-# indexing is subject to the known bug for non-CDP-registered payee EOAs
-# (x402-foundation/x402#2112). Declared now so the first CDP-settled payment
-# fans out to Bazaar/Onyx/Agentic.market automatically.
-def bazaar_ext(input_schema, output_schema):
+# CDP Bazaar discovery extension — hand-rolled wire equivalent of
+# declareDiscoveryExtension() from @x402/extensions v2 (query/GET variant;
+# x402-foundation/x402 typescript/packages/extensions, dist/cjs/bazaar/index.js).
+# The v2 shape is {info: {...}, schema: {...}} — NOT the older
+# {discoverable, inputSchema, outputSchema} shape (that variant fails CDP's
+# "Bazaar Extension checks": missing bazaar.info / bazaar.schema blocks).
+# Declared at the TOP LEVEL of the 402 PaymentRequirements extensions object
+# (route-level per the SDK); the method is set explicitly here because we run
+# a hand-rolled stdlib server with no runtime enrichment hook.
+def bazaar_ext(params, output_props, output_example):
+    """Build the bazaar discovery extension for one GET endpoint.
+
+    params: {name: {"type": ..., "description": ..., "required": bool, "example": ...}}
+    output_props: {"prop": {"type": ...}, ...} — JSON Schema properties of the response
+    output_example: realistic example of the paid response body
+    """
+    info_input = {"type": "http", "method": "GET"}
+    schema_input_props = {
+        "type": {"type": "string", "const": "http"},
+        "method": {"type": "string", "enum": ["GET", "HEAD", "DELETE"]},
+    }
+    if params:
+        info_input["queryParams"] = {n: p["example"] for n, p in params.items()}
+        schema_input_props["queryParams"] = {
+            "type": "object",
+            "properties": {n: {"type": p["type"], "description": p["description"]}
+                           for n, p in params.items()},
+            "required": [n for n, p in params.items() if p.get("required")],
+        }
+    info = {"input": info_input}
+    schema_props = {
+        "input": {
+            "type": "object",
+            "properties": schema_input_props,
+            "required": ["type", "method"],
+            "additionalProperties": False,
+        },
+    }
+    if output_example is not None:
+        info["output"] = {"type": "json", "example": output_example}
+        schema_props["output"] = {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string"},
+                "example": {"type": "object", "properties": output_props},
+            },
+            "required": ["type"],
+        }
     return {
-        "discoverable": True,
-        "inputSchema": input_schema,
-        "outputSchema": output_schema,
+        "info": info,
+        "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": schema_props,
+            "required": ["input"],
+        },
     }
 
 BAZAAR_LOOKUP = bazaar_ext(
-    {"queryParams": {
-        "query": {"type": "string",
-                  "description": "Company name or domain to enrich (e.g. 'Acme Corp' or 'acme.com')",
-                  "required": True}}},
-    {"type": "object", "properties": {
-        "lead": {"type": "object"},
-        "receipt": {"type": "string"},
-        "verified_at": {"type": "string"}}},
+    {"query": {"type": "string",
+               "description": "Company name or domain to enrich (e.g. 'Acme Corp' or 'acme.com')",
+               "required": True, "example": "acme.com"}},
+    {"lead": {"type": "object"},
+     "receipt": {"type": "string"},
+     "verified_at": {"type": "string"}},
+    {"lead": {"company_name": "Acme Corp", "contact_email": "jane@acme.com",
+              "source_url": "https://acme.com/team"},
+     "receipt": "ok", "verified_at": "2026-10-08T12:00:00Z"},
 )
 
 BAZAAR_DELIVERABILITY = bazaar_ext(
-    {"queryParams": {
-        "email": {"type": "string",
-                  "description": "Email address to score (e.g. 'jane@acme.com'). Use email OR domain, not both.",
-                  "required": False},
-        "domain": {"type": "string",
-                   "description": "Domain to score (e.g. 'acme.com'). Use email OR domain, not both.",
-                   "required": False}}},
-    {"type": "object", "properties": {
-        "score": {"type": "number"},
-        "verdict": {"type": "string"},
-        "flags": {"type": "array"},
-        "checks": {"type": "object"},
-        "receipt": {"type": "string"}}},
+    {"email": {"type": "string",
+               "description": "Email address to score (e.g. 'jane@acme.com'). Use email OR domain, not both.",
+               "required": False, "example": "jane@acme.com"},
+     "domain": {"type": "string",
+                "description": "Domain to score (e.g. 'acme.com'). Use email OR domain, not both.",
+                "required": False, "example": "acme.com"}},
+    {"score": {"type": "number"},
+     "verdict": {"type": "string"},
+     "flags": {"type": "array"},
+     "checks": {"type": "object"},
+     "receipt": {"type": "string"}},
+    {"score": 0.92, "verdict": "deliverable", "flags": [],
+     "checks": {"mx": True, "syntax": True}, "receipt": "ok"},
 )
 
 BAZAAR_PACKSIZE = bazaar_ext(
-    {"queryParams": {
-        "title": {"type": "string",
-                  "description": "Product title to parse (e.g. 'Coca-Cola 12-pack 12oz cans').",
-                  "required": True},
-        "price": {"type": "string",
-                  "description": "Optional package price (e.g. '8.99') to compute price per normalized unit.",
-                  "required": False}}},
-    {"type": "object", "properties": {
-        "pack_count": {"type": "number"},
-        "unit_size": {"type": "string"},
-        "total_normalized": {"type": "string"},
-        "unit_price": {"type": "string"},
-        "confidence": {"type": "string"},
-        "receipt": {"type": "string"}}},
+    {"title": {"type": "string",
+               "description": "Product title to parse (e.g. 'Coca-Cola 12-pack 12oz cans').",
+               "required": True, "example": "Coca-Cola 12-pack 12oz cans"},
+     "price": {"type": "string",
+               "description": "Optional package price (e.g. '8.99') to compute price per normalized unit.",
+               "required": False, "example": "8.99"}},
+    {"pack_count": {"type": "number"},
+     "unit_size": {"type": "string"},
+     "total_normalized": {"type": "string"},
+     "unit_price": {"type": "string"},
+     "confidence": {"type": "string"},
+     "receipt": {"type": "string"}},
+    {"pack_count": 12, "unit_size": "12oz", "total_normalized": "144oz",
+     "unit_price": "0.75", "confidence": "high", "receipt": "ok"},
 )
 
 BAZAAR_PACK = bazaar_ext(
     {},
-    {"type": "object", "properties": {
-        "pack": {"type": "string"},
-        "leads": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"pack": {"type": "string"},
+     "leads": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"pack": "scout-pack-25",
+     "leads": [{"company_name": "Acme Corp", "contact_email": "jane@acme.com"}],
+     "receipt": "ok"},
 )
 
 BAZAAR_DOMAININTEL = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain to investigate (e.g. 'acme.com'). An email address also works; the domain part is used.",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "registration": {"type": "object"},
-        "dns": {"type": "object"},
-        "domain_age_days": {"type": "number"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain to investigate (e.g. 'acme.com'). An email address also works; the domain part is used.",
+                "required": True, "example": "acme.com"}},
+    {"registration": {"type": "object"},
+     "dns": {"type": "object"},
+     "domain_age_days": {"type": "number"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"registration": {"registrar": "Example Registrar", "created": "2001-05-03"},
+     "dns": {"a": ["93.184.216.34"]}, "domain_age_days": 9280,
+     "signals": ["aged-domain"], "receipt": "ok"},
 )
 
 BAZAAR_TECHSTACK = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain to fingerprint (e.g. 'acme.com').",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "domain": {"type": "string"},
-        "technologies": {"type": "array"},
-        "server_header": {"type": "string"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain to fingerprint (e.g. 'acme.com').",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "technologies": {"type": "array"},
+     "server_header": {"type": "string"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com", "technologies": ["nginx", "wordpress"],
+     "server_header": "nginx", "signals": [], "receipt": "ok"},
 )
 
 BAZAAR_EMAILPATTERN = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain to analyze (e.g. 'acme.com').",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "domain": {"type": "string"},
-        "patterns": {"type": "array"},
-        "mx_found": {"type": "boolean"},
-        "catch_all_unknown": {"type": "boolean"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain to analyze (e.g. 'acme.com').",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "patterns": {"type": "array"},
+     "mx_found": {"type": "boolean"},
+     "catch_all_unknown": {"type": "boolean"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com", "patterns": ["{first}.{last}"], "mx_found": True,
+     "catch_all_unknown": False, "signals": [], "receipt": "ok"},
 )
 
 BAZAAR_SSLCHECK = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain whose certificate to check (e.g. 'acme.com').",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "domain": {"type": "string"},
-        "valid": {"type": "boolean"},
-        "issuer": {"type": "string"},
-        "expires": {"type": "string"},
-        "days_remaining": {"type": "number"},
-        "tls_version": {"type": "string"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain whose certificate to check (e.g. 'acme.com').",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "valid": {"type": "boolean"},
+     "issuer": {"type": "string"},
+     "expires": {"type": "string"},
+     "days_remaining": {"type": "number"},
+     "tls_version": {"type": "string"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com", "valid": True, "issuer": "Let's Encrypt",
+     "expires": "2027-01-01", "days_remaining": 85, "tls_version": "TLSv1.3",
+     "signals": [], "receipt": "ok"},
 )
 
 BAZAAR_HEADERS = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain to audit (e.g. 'acme.com').",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "domain": {"type": "string"},
-        "score": {"type": "number"},
-        "grade": {"type": "string"},
-        "present": {"type": "object"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain to audit (e.g. 'acme.com').",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "score": {"type": "number"},
+     "grade": {"type": "string"},
+     "present": {"type": "object"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com", "score": 85, "grade": "B",
+     "present": {"strict-transport-security": True}, "signals": [], "receipt": "ok"},
 )
 
 BAZAAR_DNS = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain to dump DNS records for (e.g. 'acme.com').",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "domain": {"type": "string"},
-        "records": {"type": "object"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain to dump DNS records for (e.g. 'acme.com').",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "records": {"type": "object"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com", "records": {"A": ["93.184.216.34"]},
+     "signals": [], "receipt": "ok"},
 )
 
 BAZAAR_SUBDOMAINS = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain to map the subdomain footprint for (e.g. 'acme.com').",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "domain": {"type": "string"},
-        "count": {"type": "number"},
-        "subdomains": {"type": "array"},
-        "categories": {"type": "object"},
-        "wildcard_detected": {"type": "boolean"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain to map the subdomain footprint for (e.g. 'acme.com').",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "count": {"type": "number"},
+     "subdomains": {"type": "array"},
+     "categories": {"type": "object"},
+     "wildcard_detected": {"type": "boolean"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com", "count": 3, "subdomains": ["www.acme.com"],
+     "categories": {}, "wildcard_detected": False, "signals": [], "receipt": "ok"},
 )
 
 BAZAAR_CONTACTPAGE = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain whose public contact surface to extract (e.g. 'acme.com').",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "domain": {"type": "string"},
-        "emails": {"type": "array"},
-        "phones": {"type": "array"},
-        "has_contact_form": {"type": "boolean"},
-        "contact_form_url": {"type": "string"},
-        "address": {"type": "object"},
-        "social_links": {"type": "array"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain whose public contact surface to extract (e.g. 'acme.com').",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "emails": {"type": "array"},
+     "phones": {"type": "array"},
+     "has_contact_form": {"type": "boolean"},
+     "contact_form_url": {"type": "string"},
+     "address": {"type": "object"},
+     "social_links": {"type": "array"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com", "emails": ["info@acme.com"], "phones": [],
+     "has_contact_form": True, "contact_form_url": "https://acme.com/contact",
+     "address": {}, "social_links": [], "signals": [], "receipt": "ok"},
 )
 
 BAZAAR_MAILPROVIDER = bazaar_ext(
-    {"queryParams": {
-        "domain": {"type": "string",
-                   "description": "Domain to identify the email provider for (e.g. 'acme.com').",
-                   "required": True}}},
-    {"type": "object", "properties": {
-        "domain": {"type": "string"},
-        "provider": {"type": "string"},
-        "confidence": {"type": "string"},
-        "mx_hosts": {"type": "array"},
-        "is_gateway": {"type": "boolean"},
-        "gateway": {"type": "string"},
-        "multi_provider": {"type": "boolean"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"domain": {"type": "string",
+                "description": "Domain to identify the email provider for (e.g. 'acme.com').",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "provider": {"type": "string"},
+     "confidence": {"type": "string"},
+     "mx_hosts": {"type": "array"},
+     "is_gateway": {"type": "boolean"},
+     "gateway": {"type": "string"},
+     "multi_provider": {"type": "boolean"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com", "provider": "Google Workspace", "confidence": "high",
+     "mx_hosts": ["aspmx.l.google.com"], "is_gateway": False, "gateway": "",
+     "multi_provider": False, "signals": [], "receipt": "ok"},
 )
 
 BAZAAR_REPOHEALTH = bazaar_ext(
-    {"queryParams": {
-        "repo": {"type": "string",
-                 "description": "GitHub repo as owner/name (e.g. 'octocat/hello-world').",
-                 "required": True}}},
-    {"type": "object", "properties": {
-        "repo": {"type": "string"},
-        "stars": {"type": "number"},
-        "forks": {"type": "number"},
-        "open_issues": {"type": "number"},
-        "commits_last_90d": {"type": "number"},
-        "signals": {"type": "array"},
-        "receipt": {"type": "string"}}},
+    {"repo": {"type": "string",
+              "description": "GitHub repo as owner/name (e.g. 'octocat/hello-world').",
+              "required": True, "example": "octocat/hello-world"}},
+    {"repo": {"type": "string"},
+     "stars": {"type": "number"},
+     "forks": {"type": "number"},
+     "open_issues": {"type": "number"},
+     "commits_last_90d": {"type": "number"},
+     "signals": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"repo": "octocat/hello-world", "stars": 1500, "forks": 200,
+     "open_issues": 12, "commits_last_90d": 34, "signals": ["active"], "receipt": "ok"},
 )
 
 with open(os.path.join(BASE_DIR, "packs", "scout-pack-25.json")) as f:
