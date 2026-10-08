@@ -625,6 +625,7 @@ def payment_terms(handler, pack_size):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": desc, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_PACK},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -700,6 +701,7 @@ def lookup_payment_terms(handler, query):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": LOOKUP_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_LOOKUP},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -896,6 +898,7 @@ def deliverability_payment_terms(handler, target):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": DELIVERABILITY_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_DELIVERABILITY},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -1122,6 +1125,7 @@ def packsize_payment_terms(handler, title, price):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": PACKSIZE_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_PACKSIZE},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -1318,6 +1322,7 @@ def domainintel_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": DOMAININTEL_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_DOMAININTEL},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -1765,6 +1770,7 @@ def techstack_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": TECHSTACK_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_TECHSTACK},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -1849,6 +1855,7 @@ def emailpattern_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": EMAILPATTERN_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_EMAILPATTERN},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -1960,6 +1967,7 @@ def sslcheck_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": SSLCHECK_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_SSLCHECK},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -2456,6 +2464,7 @@ def headers_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": HEADERS_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_HEADERS},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -2537,6 +2546,7 @@ def dns_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": DNS_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_DNS},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -2618,6 +2628,7 @@ def subdomains_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": SUBDOMAINS_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_SUBDOMAINS},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -2699,6 +2710,7 @@ def contactpage_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": CONTACTPAGE_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_CONTACTPAGE},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -2780,6 +2792,7 @@ def mailprovider_payment_terms(handler, domain):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": MAILPROVIDER_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_MAILPROVIDER},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -2861,6 +2874,7 @@ def repohealth_payment_terms(handler, repo):
         "x402Version": 2,
         "accepts": [accept],
         "resource": {"url": resource, "description": REPOHEALTH_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_REPOHEALTH},
         "sales_enabled": SALES_ENABLED,
         **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
     }
@@ -3493,7 +3507,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/packs/{size}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_PACK}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -3511,7 +3525,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/lookup?query={query}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_LOOKUP}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -3563,7 +3577,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/deliverability?target={target}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_DELIVERABILITY}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -3648,7 +3662,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/domain-intel?domain={domain}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_DOMAININTEL}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -3725,7 +3739,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/tech-stack?domain={domain}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_TECHSTACK}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -3807,7 +3821,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/email-pattern?domain={domain}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_EMAILPATTERN}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -3889,7 +3903,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/ssl-check?domain={domain}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_SSLCHECK}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -3971,7 +3985,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": base_url(self) + "/headers?domain=" + domain,
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_HEADERS}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -4053,7 +4067,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": base_url(self) + "/dns?domain=" + domain,
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_DNS}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -4135,7 +4149,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": base_url(self) + "/subdomains?domain=" + domain,
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_SUBDOMAINS}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -4217,7 +4231,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": base_url(self) + "/contact-page?domain=" + domain,
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_CONTACTPAGE}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -4299,7 +4313,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": base_url(self) + "/mail-provider?domain=" + domain,
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_MAILPROVIDER}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -4381,7 +4395,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": base_url(self) + "/repo-health?repo=" + repo,
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_REPOHEALTH}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
@@ -4464,7 +4478,7 @@ table.eps td.d{{color:var(--muted)}}
             "resource": f"{base_url(self)}/packsize?{q}",
             "description": body["x402"]["accepts"][0]["description"],
             "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
-            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}]}
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_PACKSIZE}}
         terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
         self.send_json(402, body, {
             "PAYMENT-REQUIRED": terms_b64_v2,
