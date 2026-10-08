@@ -419,6 +419,88 @@ def repo_health(repo: str) -> str:
         "Receive the repo health signals.",
         "repo_health")
 
+@mcp.tool()
+def deliverability(target: str) -> str:
+    """Score an email address or domain for deliverability: MX/SPF/DMARC
+    checks, disposable-domain and role-account detection, bounce-risk score
+    0-100 with a send/caution/do_not_send verdict. $0.03 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: deliverability(target="jane@acme.com") or deliverability(target="acme.com")"""
+    return _x402_instructions(
+        "Email deliverability scoring", "/deliverability", "/fulfill-deliverability",
+        "target", target,
+        "Receive the deliverability score with verdict.",
+        "deliverability")
+
+
+@mcp.tool()
+def domain_intel(domain: str) -> str:
+    """Domain intelligence: RDAP registration data (registrar, creation/expiry
+    dates) plus DNS infrastructure signals for any domain. $0.02 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: domain_intel(domain="acme.com")"""
+    return _x402_instructions(
+        "Domain intelligence", "/domain-intel", "/fulfill-domain-intel",
+        "domain", domain,
+        "Receive RDAP registration data and DNS signals.",
+        "domain_intel")
+
+
+@mcp.tool()
+def packsize(title: str, price: str = "") -> str:
+    """Pack-size resolver: parse a product title (and optional package price)
+    into pack count, unit size and unit price. $0.02 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: packsize(title="Acme Protein Powder 2lb", price="$29.99")"""
+    from urllib.parse import quote_plus
+    t = (title or "").strip()
+    if not t:
+        return "Error: title is required."
+    qs = f"title={quote_plus(t)}"
+    if price and price.strip():
+        qs += f"&price={quote_plus(price.strip())}"
+    res = _get(f"/packsize?{qs}")
+    if res["ok"]:
+        return f"Unexpected response: {res['data']}"
+    if res["status"] != 402:
+        return "\n".join([
+            "# packsize failed",
+            f"Endpoint error: {res['data'].get('error', 'unknown')} (HTTP {res['status']}).",
+            f"Endpoint: {BASE_URL}. No payment should be attempted.",
+        ])
+    body = res["data"]
+    lines = [f"# Pack-size resolver: '{t}'", ""]
+    lines.append(f"Price: ${body.get('price_usd', 0.02)} {body.get('currency', 'USDC')} "
+                 f"on {body.get('network', 'eip155:8453')}")
+    lines.append("")
+    accepts = (body.get("x402", {}) or {}).get("accepts", [{}])[0]
+    pay_to = accepts.get("payTo", "")
+    amount_raw = accepts.get("maxAmountRequired", "20000")
+    try:
+        amount_usdc = int(amount_raw) / 1_000_000
+    except (TypeError, ValueError):
+        amount_usdc = 0.02
+    zero = "0x0000000000000000000000000000000000000000"
+    if not pay_to or pay_to.lower() == zero:
+        lines.append("SALES PAUSED. Do NOT send funds.")
+        return "\n".join(lines)
+    lines.append("## What your agent must do")
+    lines.append(f"1. Send exactly ${amount_usdc:.2f} USDC on Base to:")
+    lines.append(f"   {pay_to}")
+    lines.append(f"   Asset: {accepts.get('asset', '')}")
+    lines.append("2. Wait for confirmation, then POST:")
+    lines.append(f"   POST {BASE_URL}/fulfill-packsize")
+    body_example = f'{{"tx_hash": "0x...", "title": "{t}"'
+    if price and price.strip():
+        body_example += f', "price": "{price.strip()}"'
+    body_example += "}"
+    lines.append(f"   Body: {body_example}")
+    lines.append("3. Receive the parsed pack count, unit size and unit price.")
+    lines.append("")
+    lines.append("Payment is verified on-chain; tx hashes are single-use.")
+    return "\n".join(lines)
+
+
 def main() -> None:
     """Entry point for the `scout-packs-mcp` console script (uvx/pipx)."""
     mcp.run()
