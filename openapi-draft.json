@@ -346,7 +346,7 @@
     },
     "/packs/{size}": {
       "get": {
-        "description": "Unpaid request returns HTTP 402 with x402 v2 payment terms (PAYMENT-REQUIRED header, base64 JSON: scheme exact, network eip155:8453, payTo 0xAF7B70D8487EE6193701597E67f56A5902d23913, asset USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913). Amounts: all packs and lookups 10000 base units ($0.01 USDC). After payment, retry with the X-Payment header (standard x402 flow) or POST /fulfill with the tx hash.",
+        "description": "Lead data: Scout Packs of verified B2B leads as JSON (people search results with verified business emails, ready for outreach). Unpaid request returns HTTP 402 with x402 v2 payment terms. Paid via x402 signed settlement.",
         "operationId": "getPack",
         "parameters": [
           {
@@ -433,13 +433,13 @@
             "description": "Payment required \u2014 x402 terms in PAYMENT-REQUIRED header"
           }
         },
-        "summary": "Buy a lead pack (x402 paywall)"
+        "summary": "Lead data \u2014 buy a verified B2B lead pack (x402 paywall)"
       }
     },
     "/lookup": {
       "get": {
         "operationId": "lookupLead",
-        "description": "Look up one verified B2B contact by company name or source domain. Unpaid request returns HTTP 402 with x402 v2 payment terms (PAYMENT-REQUIRED header, base64 JSON: scheme exact, network eip155:8453, maxAmountRequired 10000 base units = $0.01 USDC, payTo 0xAF7B70D8487EE6193701597E67f56A5902d23913, asset USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913). Pay $0.01 USDC on Base via signed x402: retry with the signature in X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) to receive the verified contact (manual fallback: POST /fulfill-lookup with {\"tx_hash\": \"0x...\", \"query\": \"<same query>\"}). No match returns 404 with suggestions.",
+        "description": "Company enrichment: find a verified business email + source URL for any company or domain. Apollo-style email enrichment and validation for B2B lead data. Unpaid request returns HTTP 402 with x402 v2 payment terms. Paid via x402 signed settlement.",
         "parameters": [
           {
             "name": "query",
@@ -458,7 +458,8 @@
           "404": {
             "description": "No verified contact found for this query."
           }
-        }
+        },
+        "summary": "Lead data \u2014 people search: company enrichment ($0.01 USDC/call, x402, Base)"
       }
     },
     "/fulfill-lookup": {
@@ -504,8 +505,8 @@
     },
     "/deliverability": {
       "get": {
-        "summary": "Email deliverability score \u2014 $0.03 USDC per call (x402, Base)",
-        "description": "MX/SPF/DMARC checks, disposable-domain and role-account detection. Returns score 0-100 with send/caution/do_not_send verdict. Paid via x402 signed settlement or POST /fulfill-deliverability.",
+        "summary": "Email verification \u2014 $0.03 USDC per call (x402, Base)",
+        "description": "Email verification: MX/SPF/DMARC checks, disposable-domain and role-account detection. Returns bounce-risk score 0-100 with send/caution/do_not_send verdict. Email enrichment and validation for lead data. Paid via x402 signed settlement.",
         "parameters": [
           {
             "name": "email",
@@ -819,8 +820,8 @@
     },
     "/domain-intel": {
       "get": {
-        "summary": "Domain intelligence \u2014 $0.02 USDC per call (x402, Base)",
-        "description": "RDAP registration data (registrar, creation/expiry dates, status) plus DNS infrastructure signals (nameservers, A records, mail exchanger presence) with risk flags. One domain per call. Paid via x402 signed settlement or POST /fulfill-domain-intel. Zero upstream cost (rdap.org + DNS-over-HTTPS).",
+        "summary": "Company enrichment from domain \u2014 $0.02 USDC per call (x402, Base)",
+        "description": "Company enrichment from domain: RDAP registration data (registrar, creation/expiry dates, status) plus DNS infrastructure signals (nameservers, A records, mail exchanger presence). Lead data for B2B prospecting. Paid via x402 signed settlement.",
         "parameters": [
           {
             "name": "domain",
@@ -882,8 +883,8 @@
     },
     "/tech-stack": {
       "get": {
-        "summary": "Domain intelligence \u2014 $0.02 USDC per call (x402, Base)",
-        "description": "RDAP registration data (registrar, creation/expiry dates, status) plus DNS infrastructure signals (nameservers, A records, mail exchanger presence) with risk flags. One domain per call. Paid via x402 signed settlement or POST /fulfill-tech-stack. Zero upstream cost (rdap.org + DNS-over-HTTPS).",
+        "summary": "Company enrichment from domain: tech-stack detection \u2014 $0.01 USDC per call (x402, Base)",
+        "description": "Company enrichment from domain: tech-stack detection \u2014 identify the web technologies powering a domain (CMS, frameworks, analytics, CDNs) from HTTP headers and page markup, with per-technology confidence and evidence. Lead data for B2B prospecting. Paid via x402 signed settlement.",
         "parameters": [
           {
             "name": "domain",
@@ -947,8 +948,8 @@
     },
     "/email-pattern": {
       "get": {
-        "summary": "Domain intelligence \u2014 $0.02 USDC per call (x402, Base)",
-        "description": "RDAP registration data (registrar, creation/expiry dates, status) plus DNS infrastructure signals (nameservers, A records, mail exchanger presence) with risk flags. One domain per call. Paid via x402 signed settlement or POST /fulfill-email-pattern. Zero upstream cost (rdap.org + DNS-over-HTTPS).",
+        "summary": "Email enrichment and validation \u2014 $0.01 USDC per call (x402, Base)",
+        "description": "Email enrichment and validation: the most likely corporate email address patterns for a domain (first.last@, first@, flast@, ...) plus MX verification so you know it can receive mail. Apollo-style email verification for lead data. Paid via x402 signed settlement.",
         "parameters": [
           {
             "name": "domain",
@@ -1054,8 +1055,8 @@
     },
     "/ssl-check": {
       "get": {
-        "summary": "Domain intelligence \u2014 $0.02 USDC per call (x402, Base)",
-        "description": "RDAP registration data (registrar, creation/expiry dates, status) plus DNS infrastructure signals (nameservers, A records, mail exchanger presence) with risk flags. One domain per call. Paid via x402 signed settlement or POST /fulfill-ssl-check. Zero upstream cost (rdap.org + DNS-over-HTTPS).",
+        "summary": "Company enrichment from domain: SSL/TLS certificate check \u2014 $0.01 USDC per call (x402, Base)",
+        "description": "Company enrichment from domain: SSL/TLS certificate check \u2014 issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed). Lead data signal for prospecting. Paid via x402 signed settlement.",
         "parameters": [
           {
             "name": "domain",

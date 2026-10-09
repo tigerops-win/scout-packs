@@ -132,8 +132,9 @@ def list_packs() -> str:
 
 @mcp.tool()
 def buy_pack(pack: str) -> str:
-    """Get the exact x402 payment requirements and step-by-step buying flow
-    for a Scout Pack. pack: "25", "50", or "100".
+    """Lead data — buy a Scout Pack of verified B2B leads (people search results
+    with verified business emails, ready for outreach). Get the exact x402
+    payment requirements and step-by-step buying flow. pack: "25", "50", or "100".
     Returns what the buying agent must do; the agent's own wallet executes
     the USDC payment against the endpoint."""
     size = _pack_key(pack)
@@ -195,8 +196,9 @@ def buy_pack(pack: str) -> str:
 
 @mcp.tool()
 def lookup_lead(query: str) -> str:
-    """B2B lead enrichment: contact lookup by company name or domain. Enrich one
-    lead with a verified business email + source URL. $0.01 USDC per lookup.
+    """Lead data — people search: company enrichment by company name or domain.
+    Apollo-style email enrichment and validation: enrich one lead with a verified
+    business email + source URL. $0.01 USDC per lookup.
     Returns the x402 payment requirements; your agent's wallet executes the payment.
     Example: lookup_lead(query="Acme Corp") or lookup_lead(query="acme.com")"""
     q = (query or "").strip()
@@ -299,7 +301,8 @@ def _x402_instructions(title: str, path: str, fulfill_path: str,
 
 @mcp.tool()
 def tech_stack(domain: str) -> str:
-    """Detect the web technologies powering a domain (CMS, frameworks, analytics,
+    """Company enrichment from domain — lead data: tech-stack detection. Identify
+    the web technologies powering a domain (CMS, frameworks, analytics,
     CDNs) from HTTP headers and page markup, with per-technology confidence and
     evidence. $0.01 USDC per call.
     Returns the x402 payment requirements; your agent's wallet executes the payment.
@@ -313,9 +316,10 @@ def tech_stack(domain: str) -> str:
 
 @mcp.tool()
 def email_pattern(domain: str) -> str:
-    """Find the most likely corporate email address patterns for a domain
-    (first.last@, first@, flast@, ...) plus MX verification that the domain can
-    receive mail. $0.01 USDC per call.
+    """Email enrichment and validation — lead data: the most likely corporate
+    email address patterns for a domain (first.last@, first@, flast@, ...)
+    plus MX verification that the domain can receive mail. Apollo-style email
+    verification. $0.01 USDC per call.
     Returns the x402 payment requirements; your agent's wallet executes the payment.
     Example: email_pattern(domain="acme.com")"""
     return _x402_instructions(
@@ -327,9 +331,9 @@ def email_pattern(domain: str) -> str:
 
 @mcp.tool()
 def ssl_check(domain: str) -> str:
-    """Check a domain's SSL/TLS certificate: issuer, expiry date, days remaining,
-    TLS version, and risk flags (expired, expiring soon, self-signed).
-    $0.01 USDC per call.
+    """Company enrichment from domain — lead data: SSL/TLS certificate check.
+    Issuer, expiry date, days remaining, TLS version, and risk flags
+    (expired, expiring soon, self-signed). $0.01 USDC per call.
     Returns the x402 payment requirements; your agent's wallet executes the payment.
     Example: ssl_check(domain="acme.com")"""
     return _x402_instructions(
@@ -421,9 +425,10 @@ def repo_health(repo: str) -> str:
 
 @mcp.tool()
 def deliverability(target: str) -> str:
-    """Score an email address or domain for deliverability: MX/SPF/DMARC
-    checks, disposable-domain and role-account detection, bounce-risk score
-    0-100 with a send/caution/do_not_send verdict. $0.03 USDC per call.
+    """Email verification — lead data: MX/SPF/DMARC checks, disposable-domain
+    and role-account detection, bounce-risk score 0-100 with a
+    send/caution/do_not_send verdict. Email enrichment and validation.
+    $0.03 USDC per call.
     Returns the x402 payment requirements; your agent's wallet executes the payment.
     Example: deliverability(target="jane@acme.com") or deliverability(target="acme.com")"""
     return _x402_instructions(
@@ -435,8 +440,9 @@ def deliverability(target: str) -> str:
 
 @mcp.tool()
 def domain_intel(domain: str) -> str:
-    """Domain intelligence: RDAP registration data (registrar, creation/expiry
-    dates) plus DNS infrastructure signals for any domain. $0.02 USDC per call.
+    """Company enrichment from domain — lead data: RDAP registration data
+    (registrar, creation/expiry dates) plus DNS infrastructure signals for any
+    domain. $0.02 USDC per call.
     Returns the x402 payment requirements; your agent's wallet executes the payment.
     Example: domain_intel(domain="acme.com")"""
     return _x402_instructions(

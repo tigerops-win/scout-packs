@@ -65,16 +65,19 @@ LOOKUP_PRICE_USD = 0.01
 LOOKUP_AMOUNT = 10_000  # $0.01 in 6-decimal USDC
 # Keyword-tuned for Agent402 router text-match: lead / enrichment / b2b /
 # contact lookup / email.
-LOOKUP_DESC = ("B2B lead enrichment — contact lookup: enrich any company with a verified "
-               "business email + source URL. One lead lookup per call. Tiger Operations.")
+LOOKUP_DESC = ("Lead data — people search: company enrichment that finds a verified "
+               "business email + source URL for any company or domain. Apollo-style "
+               "email enrichment and validation for B2B lead data. One lookup per call. "
+               "Tiger Operations.")
 
 # Email deliverability score (2026-10-05: model-consensus build #1 — every
 # sender agent needs it; no deliverability listing on PayAPI). $0.03/lookup.
 DELIVERABILITY_PRICE_USD = 0.03
 DELIVERABILITY_AMOUNT = 30_000  # $0.03 in 6-decimal USDC
-DELIVERABILITY_DESC = ("Email deliverability score — MX/SPF/DMARC checks, disposable-domain "
-                       "and role-account detection, bounce-risk score 0-100 with send/caution/"
-                       "do_not_send verdict. One email or domain per call. Tiger Operations.")
+DELIVERABILITY_DESC = ("Email verification — MX/SPF/DMARC checks, disposable-domain "
+                       "and role-account detection, with bounce-risk score 0-100 and "
+                       "send/caution/do_not_send verdict. Email enrichment and validation "
+                       "for lead data. One email or domain per call. Tiger Operations.")
 
 # Pack-size identity resolver (2026-10-05: idea #23 from the 100-idea blueprint,
 # priority 3/100 — the parser/rules core as a pure x402 data endpoint, no
@@ -657,9 +660,9 @@ def payment_terms(handler, pack_size):
     p = PACKS[pack_size]
     base = base_url(handler)
     resource = f"{base}/packs/{pack_size}"
-    desc = (f"Scout Pack {p['count']} — {p['count']} verified B2B leads as JSON "
-            f"(lead enrichment batch: company, location, category, verified business "
-            f"email, source URL per contact). Tiger Operations.")
+    desc = (f"Lead data — Scout Pack {p['count']}: {p['count']} verified B2B leads "
+            f"as JSON (people search results with verified business emails, ready "
+            f"for outreach). Tiger Operations.")
     accept = {
         "scheme": "exact",
         "network": NETWORK,
@@ -1215,10 +1218,10 @@ def packsize_paywall_body(handler, title, price):
 
 DOMAININTEL_PRICE_USD = 0.02
 DOMAININTEL_AMOUNT = 20_000  # $0.02 in 6-decimal USDC
-DOMAININTEL_DESC = ("Domain intelligence — RDAP registration data (registrar, "
+DOMAININTEL_DESC = ("Company enrichment from domain — RDAP registration data (registrar, "
                     "creation/expiry dates, status) plus DNS infrastructure signals "
-                    "(nameservers, A records, mail exchanger presence). One domain "
-                    "per call. Tiger Operations.")
+                    "(nameservers, A records, mail exchanger presence). Lead data for "
+                    "B2B prospecting. One domain per call. Tiger Operations.")
 
 PRIVACY_REGISTRAR_HINTS = ("privacy", "whoisguard", "whois guard", "domains by proxy",
                            "redacted", "withheld", "private", "guard")
@@ -1767,7 +1770,7 @@ def ssl_check(domain):
 
 TECHSTACK_PRICE_USD = 0.01
 TECHSTACK_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-TECHSTACK_DESC = ("Tech-stack detection — identify the web technologies powering a domain (CMS, frameworks, analytics, CDNs) from HTTP headers and page markup, with per-technology confidence and evidence. One domain per call. Tiger Operations.")
+TECHSTACK_DESC = ("Company enrichment from domain — tech-stack detection: identify the web technologies powering a domain (CMS, frameworks, analytics, CDNs) from HTTP headers and page markup, with per-technology confidence and evidence. Lead data for B2B prospecting. One domain per call. Tiger Operations.")
 
 def verify_techstack_payment(tx_hash):
     """Returns (ok, detail) for $0.01 tech-stack payments."""
@@ -1852,7 +1855,7 @@ def techstack_paywall_body(handler, domain):
     }
 EMAILPATTERN_PRICE_USD = 0.01
 EMAILPATTERN_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-EMAILPATTERN_DESC = ("Email-pattern finder — the most likely corporate email address patterns for a domain (first.last@, first@, flast@, ...) plus whether the domain has mail exchangers (MX) so you know it can receive mail. One domain per call. Tiger Operations.")
+EMAILPATTERN_DESC = ("Email enrichment and validation — the most likely corporate email address patterns for a domain (first.last@, first@, flast@, ...) plus MX verification so you know it can receive mail. Apollo-style email verification for lead data. One domain per call. Tiger Operations.")
 
 def verify_emailpattern_payment(tx_hash):
     """Returns (ok, detail) for $0.01 email-pattern payments."""
@@ -1937,7 +1940,7 @@ def emailpattern_paywall_body(handler, domain):
     }
 SSLCHECK_PRICE_USD = 0.01
 SSLCHECK_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-SSLCHECK_DESC = ("SSL/TLS certificate check — issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed) for a domain's HTTPS certificate. One domain per call. Tiger Operations.")
+SSLCHECK_DESC = ("Company enrichment from domain — SSL/TLS certificate check: issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed) for a domain's HTTPS certificate. Lead data signal for prospecting. One domain per call. Tiger Operations.")
 
 HEADERS_PRICE_USD = 0.01
 HEADERS_AMOUNT = 10000  # $0.01 in 6-decimal USDC
@@ -3404,19 +3407,19 @@ table.eps td.d{{color:var(--muted)}}
                           for s, p in PACKS.items()},
                 "per_call_services": [
                     {"path": "/lookup", "price_usd": LOOKUP_PRICE_USD,
-                     "description": "Verified B2B lead lookup by company or domain."},
+                     "description": "Lead data: people search — verified B2B email + company enrichment by company or domain."},
                     {"path": "/deliverability", "price_usd": DELIVERABILITY_PRICE_USD,
-                     "description": "Email deliverability scoring (MX/SPF/DMARC/disposable/role)."},
+                     "description": "Email verification: MX/SPF/DMARC, disposable/role detection, bounce-risk score."},
                     {"path": "/packsize", "price_usd": PACKSIZE_PRICE_USD,
                      "description": "Pack-size resolver: parse pack count, unit size, unit price."},
                     {"path": "/domain-intel", "price_usd": DOMAININTEL_PRICE_USD,
-                     "description": "Domain intelligence: RDAP registration + DNS signals."},
+                     "description": "Company enrichment from domain: RDAP registration + DNS signals."},
                     {"path": "/tech-stack", "price_usd": TECHSTACK_PRICE_USD,
-                     "description": "Tech-stack detection from headers + page markup."},
+                     "description": "Company enrichment from domain: tech-stack detection from headers + markup."},
                     {"path": "/email-pattern", "price_usd": EMAILPATTERN_PRICE_USD,
-                     "description": "Likely corporate email patterns + MX verification."},
+                     "description": "Email enrichment and validation: likely corporate email patterns + MX check."},
                     {"path": "/ssl-check", "price_usd": SSLCHECK_PRICE_USD,
-                     "description": "SSL/TLS certificate details and risk flags."},
+                     "description": "Company enrichment from domain: SSL/TLS details + risk flags."},
                     {"path": "/headers", "price_usd": HEADERS_PRICE_USD,
                      "description": "Security headers audit: HSTS, CSP, X-Frame-Options etc., scored with A-F grade."},
                     {"path": "/dns", "price_usd": DNS_PRICE_USD,
@@ -4607,8 +4610,9 @@ table.eps td.d{{color:var(--muted)}}
         p = PACKS[size]
         base = base_url(self)
         resource = f"{base}/packs/{size}"
-        desc = (f"Scout Pack {p['count']} — {p['count']} verified B2B leads as JSON. "
-                "Tiger Operations.")
+        desc = (f"Lead data — Scout Pack {p['count']}: {p['count']} verified B2B leads "
+                f"as JSON (people search results with verified business emails, ready "
+                "for outreach). Tiger Operations.")
         req = x402_requirements(version, resource, p["amount"], desc)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
