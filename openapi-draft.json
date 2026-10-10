@@ -39,7 +39,7 @@
         "type": "object"
       },
       "LeadPreview": {
-        "description": "Redacted sample lead \u2014 email masked",
+        "description": "Redacted sample lead — email masked",
         "properties": {
           "company_name": {
             "type": "string"
@@ -66,14 +66,15 @@
   "info": {
     "contact": {
       "name": "Tiger Operations",
-      "url": "https://github.com/tigerops-win/scout-packs"
+      "url": "https://github.com/tigerops-win/scout-packs",
+      "email": "tigeroperations@protonmail.com"
     },
     "description": "$0.01/lead B2B contact lookup for AI agents over x402 (USDC on Base, eip155:8453). GET /lookup?query=<company or domain> returns HTTP 402 with payment terms; pay $0.01 USDC via signed x402 (retry with X-PAYMENT / PAYMENT-SIGNATURE) to receive one verified business email + source URL + provenance (manual fallback: POST /fulfill-lookup with the tx hash). No account, no API key, no subscription. Verified B2B lead packs sold to AI agents over x402 (USDC on Base, eip155:8453). Packs: 25 leads $0.01 (instant JSON), 50 leads $0.01, 100 leads $0.01 (assembled within 24h). Every lead: company, contact, title, published business email, source URL. No account, no API key, no subscription. Unpaid requests to paid routes return HTTP 402 with x402 v2 payment terms in the PAYMENT-REQUIRED header.",
     "license": {
       "name": "MIT",
       "url": "https://github.com/tigerops-win/scout-packs/blob/main/LICENSE"
     },
-    "title": "Scout Packs \u2014 Tiger Operations",
+    "title": "Scout Packs — Tiger Operations",
     "version": "1.0.0"
   },
   "openapi": "3.1.0",
@@ -430,10 +431,10 @@
                 }
               }
             },
-            "description": "Payment required \u2014 x402 terms in PAYMENT-REQUIRED header"
+            "description": "Payment required — x402 terms in PAYMENT-REQUIRED header"
           }
         },
-        "summary": "Lead data \u2014 buy a verified B2B lead pack (x402 paywall)"
+        "summary": "Lead data — buy a verified B2B lead pack (x402 paywall)"
       }
     },
     "/lookup": {
@@ -453,13 +454,13 @@
         ],
         "responses": {
           "402": {
-            "description": "Payment required \u2014 x402 v2 terms in body and PAYMENT-REQUIRED header."
+            "description": "Payment required — x402 v2 terms in body and PAYMENT-REQUIRED header."
           },
           "404": {
             "description": "No verified contact found for this query."
           }
         },
-        "summary": "Lead data \u2014 people search: company enrichment ($0.01 USDC/call, x402, Base)"
+        "summary": "Lead data — people search: company enrichment ($0.01 USDC/call, x402, Base)"
       }
     },
     "/fulfill-lookup": {
@@ -505,7 +506,7 @@
     },
     "/deliverability": {
       "get": {
-        "summary": "Email verification \u2014 $0.03 USDC per call (x402, Base)",
+        "summary": "Email verification — $0.03 USDC per call (x402, Base)",
         "description": "Email verification: MX/SPF/DMARC checks, disposable-domain and role-account detection. Returns bounce-risk score 0-100 with send/caution/do_not_send verdict. Email enrichment and validation for lead data. Paid via x402 signed settlement.",
         "parameters": [
           {
@@ -577,7 +578,7 @@
     },
     "/dns": {
       "get": {
-        "summary": "DNS record dump \u2014 $0.01 USDC per call (x402, Base)",
+        "summary": "DNS record dump — $0.01 USDC per call (x402, Base)",
         "description": "A, AAAA, MX, TXT, NS and CNAME records via Cloudflare DNS-over-HTTPS, plus SPF presence signal. One domain per call. Paid via x402 signed settlement or POST /fulfill-dns. Zero upstream cost (free public DoH, no key).",
         "parameters": [
           {
@@ -619,7 +620,7 @@
     },
     "/subdomains": {
       "get": {
-        "summary": "Subdomain intelligence \u2014 $0.02 USDC per call (x402, Base)",
+        "summary": "Subdomain intelligence — $0.02 USDC per call (x402, Base)",
         "description": "Live subdomain footprint from Certificate Transparency logs (crt.sh), classified into intent categories (api/dev, commerce, careers, docs/support, marketing, status/infra, staging/test). One domain per call. Paid via x402 signed settlement or POST /fulfill-subdomains. Zero upstream cost (free public CT database, no key).",
         "parameters": [
           {
@@ -661,7 +662,7 @@
     },
     "/contact-page": {
       "get": {
-        "summary": "Public contact extraction \u2014 $0.02 USDC per call (x402, Base)",
+        "summary": "Public contact extraction — $0.02 USDC per call (x402, Base)",
         "description": "Published emails (role vs personal), phone numbers, contact-form presence, address and social links from a company's own public website (homepage + contact/about pages). One domain per call. Paid via x402 signed settlement or POST /fulfill-contact-page. Zero upstream cost (target's own public site, no key).",
         "parameters": [
           {
@@ -703,7 +704,7 @@
     },
     "/mail-provider": {
       "get": {
-        "summary": "Email provider identification \u2014 $0.01 USDC per call (x402, Base)",
+        "summary": "Email provider identification — $0.01 USDC per call (x402, Base)",
         "description": "Mailbox host (Google Workspace, Microsoft 365, Zoho, Proton and more) plus gateway detection (Mimecast, Proofpoint, Barracuda) from MX records via DNS-over-HTTPS. One domain per call. Paid via x402 signed settlement or POST /fulfill-mail-provider. Zero upstream cost (free public DoH, no key).",
         "parameters": [
           {
@@ -745,7 +746,7 @@
     },
     "/packsize": {
       "get": {
-        "summary": "Pack-size identity resolver \u2014 $0.02 USDC per call (x402, Base)",
+        "summary": "Pack-size identity resolver — $0.02 USDC per call (x402, Base)",
         "description": "Deterministic parse of a product title into pack count, unit size, and normalized totals for comparable unit pricing. Optional price param computes price per normalized unit. Paid via x402 signed settlement or POST /fulfill-packsize.",
         "parameters": [
           {
@@ -820,7 +821,7 @@
     },
     "/domain-intel": {
       "get": {
-        "summary": "Company enrichment from domain \u2014 $0.02 USDC per call (x402, Base)",
+        "summary": "Company enrichment from domain — $0.02 USDC per call (x402, Base)",
         "description": "Company enrichment from domain: RDAP registration data (registrar, creation/expiry dates, status) plus DNS infrastructure signals (nameservers, A records, mail exchanger presence). Lead data for B2B prospecting. Paid via x402 signed settlement.",
         "parameters": [
           {
@@ -883,8 +884,8 @@
     },
     "/tech-stack": {
       "get": {
-        "summary": "Company enrichment from domain: tech-stack detection \u2014 $0.01 USDC per call (x402, Base)",
-        "description": "Company enrichment from domain: tech-stack detection \u2014 identify the web technologies powering a domain (CMS, frameworks, analytics, CDNs) from HTTP headers and page markup, with per-technology confidence and evidence. Lead data for B2B prospecting. Paid via x402 signed settlement.",
+        "summary": "Company enrichment from domain: tech-stack detection — $0.01 USDC per call (x402, Base)",
+        "description": "Company enrichment from domain: tech-stack detection — identify the web technologies powering a domain (CMS, frameworks, analytics, CDNs) from HTTP headers and page markup, with per-technology confidence and evidence. Lead data for B2B prospecting. Paid via x402 signed settlement.",
         "parameters": [
           {
             "name": "domain",
@@ -948,7 +949,7 @@
     },
     "/email-pattern": {
       "get": {
-        "summary": "Email enrichment and validation \u2014 $0.01 USDC per call (x402, Base)",
+        "summary": "Email enrichment and validation — $0.01 USDC per call (x402, Base)",
         "description": "Email enrichment and validation: the most likely corporate email address patterns for a domain (first.last@, first@, flast@, ...) plus MX verification so you know it can receive mail. Apollo-style email verification for lead data. Paid via x402 signed settlement.",
         "parameters": [
           {
@@ -1013,7 +1014,7 @@
     },
     "/headers": {
       "get": {
-        "summary": "Security headers audit \u2014 $0.01 USDC per call (x402, Base)",
+        "summary": "Security headers audit — $0.01 USDC per call (x402, Base)",
         "description": "Checks HSTS, CSP, X-Frame-Options and 5 more security headers on a domain's HTTPS response, with 0-100 score and A-F grade. One domain per call. Paid via x402 signed settlement or POST /fulfill-headers. Zero upstream cost (target's own response headers).",
         "parameters": [
           {
@@ -1055,8 +1056,8 @@
     },
     "/ssl-check": {
       "get": {
-        "summary": "Company enrichment from domain: SSL/TLS certificate check \u2014 $0.01 USDC per call (x402, Base)",
-        "description": "Company enrichment from domain: SSL/TLS certificate check \u2014 issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed). Lead data signal for prospecting. Paid via x402 signed settlement.",
+        "summary": "Company enrichment from domain: SSL/TLS certificate check — $0.01 USDC per call (x402, Base)",
+        "description": "Company enrichment from domain: SSL/TLS certificate check — issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed). Lead data signal for prospecting. Paid via x402 signed settlement.",
         "parameters": [
           {
             "name": "domain",
@@ -1120,7 +1121,7 @@
     },
     "/repo-health": {
       "get": {
-        "summary": "GitHub repo health \u2014 $0.01 USDC per call (x402, Base)",
+        "summary": "GitHub repo health — $0.01 USDC per call (x402, Base)",
         "description": "Stars, forks, open issues, license, archive status and 90-day commit velocity for a public repo. One repo per call. Paid via x402 signed settlement or POST /fulfill-repo-health. Zero upstream cost (GitHub public REST API, no key).",
         "parameters": [
           {

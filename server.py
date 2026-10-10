@@ -3017,6 +3017,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.proxy_mcp()
             if path == "/logo.png":
                 return self.serve_logo()
+            if path == "/favicon.ico":
+                return self.serve_favicon()
             m = re.fullmatch(r"/packs/(\d+)(/preview)?", path)
             if m:
                 size, preview = m.group(1), bool(m.group(2))
@@ -3029,123 +3031,93 @@ class Handler(BaseHTTPRequestHandler):
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 query = unquote_plus(params.get("query", params.get("domain", params.get("company", "")))).strip()
-                if not query:
-                    return self.send_json(400, {"error": "missing_query",
-                        "usage": "GET /lookup?query=<company name or domain>",
-                        "price_usd": LOOKUP_PRICE_USD, "currency": "USDC", "network": NETWORK})
-                lead = find_lead(query)
-                if not lead:
-                    return self.send_json(404, {"error": "no_match", "query": query,
-                        "hint": "No verified contact found for this query in the current database."})
+                # 402 before validation: the x402 payment challenge must be returned on
+                # unpaid requests even when params are missing/invalid (origin probes).
                 return self.lookup_paywall(query)
             if path == "/deliverability":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 target = unquote_plus(params.get("email", params.get("domain", params.get("target", "")))).strip()
-                if not target:
-                    return self.send_json(400, {"error": "missing_target",
-                        "usage": "GET /deliverability?email=<address> or ?domain=<domain>",
-                        "price_usd": DELIVERABILITY_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.deliverability_paywall(target)
             if path == "/packsize":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 title = unquote_plus(params.get("title", "")).strip()
                 price = unquote_plus(params.get("price", "")).strip() or None
-                if not title:
-                    return self.send_json(400, {"error": "missing_title",
-                        "usage": "GET /packsize?title=<product title>&price=<optional package price>",
-                        "price_usd": PACKSIZE_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.packsize_paywall(title, price)
             if path == "/domain-intel":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /domain-intel?domain=<domain>",
-                        "price_usd": DOMAININTEL_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.domainintel_paywall(domain)
             if path == "/tech-stack":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /tech-stack?domain=<domain>",
-                        "price_usd": TECHSTACK_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.techstack_paywall(domain)
             if path == "/email-pattern":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /email-pattern?domain=<domain>",
-                        "price_usd": EMAILPATTERN_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.emailpattern_paywall(domain)
             if path == "/ssl-check":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /ssl-check?domain=<domain>",
-                        "price_usd": SSLCHECK_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.sslcheck_paywall(domain)
             if path == "/headers":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", "")).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /headers?domain=<domain>",
-                        "price_usd": HEADERS_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.headers_paywall(domain)
             if path == "/dns":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", "")).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /dns?domain=<domain>",
-                        "price_usd": DNS_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.dns_paywall(domain)
             if path == "/subdomains":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", "")).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /subdomains?domain=<domain>",
-                        "price_usd": SUBDOMAINS_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.subdomains_paywall(domain)
             if path == "/contact-page":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", "")).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /contact-page?domain=<domain>",
-                        "price_usd": CONTACTPAGE_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.contactpage_paywall(domain)
             if path == "/mail-provider":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 domain = unquote_plus(params.get("domain", "")).strip()
-                if not domain:
-                    return self.send_json(400, {"error": "missing_domain",
-                        "usage": "GET /mail-provider?domain=<domain>",
-                        "price_usd": MAILPROVIDER_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.mailprovider_paywall(domain)
             if path == "/repo-health":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
                 repo = unquote_plus(params.get("repo", "")).strip()
-                if not repo:
-                    return self.send_json(400, {"error": "missing_repo",
-                        "usage": "GET /repo-health?repo=<owner>/<repo>",
-                        "price_usd": REPOHEALTH_PRICE_USD, "currency": "USDC", "network": NETWORK})
+                # 402 before validation (origin probes)
+
                 return self.repohealth_paywall(repo)
             return self.send_json(404, {"error": "not_found"})
         except Exception:
@@ -3543,6 +3515,20 @@ table.eps td.d{{color:var(--muted)}}
                 data = f.read()
             self.send_response(200)
             self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        return self.send_json(404, {"error": "not_found"})
+
+    def serve_favicon(self):
+        icon_path = os.path.join(BASE_DIR, "assets", "favicon.ico")
+        if os.path.exists(icon_path):
+            with open(icon_path, "rb") as f:
+                data = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/x-icon")
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "public, max-age=86400")
             self.end_headers()
