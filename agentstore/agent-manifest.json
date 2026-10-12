@@ -1,0 +1,67 @@
+{
+  "agent_id": "tiger-operations.scout-packs.mcp",
+  "name": "Scout Packs",
+  "type": "open",
+  "description": "Free Claude Code plugin for Scout Packs, Tiger Operations' pay-per-call B2B data API. 15 MCP tools: verified lead email lookup, email deliverability scoring, tech-stack detection, domain intel, SSL/DNS/subdomain recon, repo health. Plugin installs free; each data call costs $0.01-$0.03 USDC on Base via x402 (402 -> sign -> retry). No account, no API key.",
+  "version": "1.0.0",
+  "publisher": {
+    "publisher_id": "tiger-operations",
+    "display_name": "Tiger Operations",
+    "support_url": "https://github.com/tigerops-win/scout-packs"
+  },
+  "pricing": {
+    "model": "free",
+    "amount": 0
+  },
+  "install": {
+    "agent_wrapper": {
+      "format": "markdown",
+      "entrypoint": "agent-wrapper.md",
+      "checksum": "sha256:aa3e2c5b770d44a6b3df4b30b246f353b16651dbd485068034e6d272f82b183a"
+    },
+    "gateway_routes": [
+      {
+        "route_id": "scout-packs-mcp",
+        "mcp_endpoint": "https://scout-packs-production.up.railway.app/mcp",
+        "tools": [
+          "list_packs",
+          "buy_pack",
+          "lookup_lead",
+          "tech_stack",
+          "email_pattern",
+          "ssl_check",
+          "headers",
+          "dns",
+          "subdomains",
+          "contact_page",
+          "mail_provider",
+          "repo_health",
+          "deliverability",
+          "domain_intel",
+          "packsize"
+        ],
+        "auth": {
+          "type": "none"
+        }
+      }
+    ]
+  },
+  "permissions": {
+    "requires_network": true,
+    "requires_filesystem": false,
+    "notes": "Makes HTTPS calls to scout-packs-production.up.railway.app for pay-per-call data services. No local file access."
+  },
+  "tags": [
+    "lead-enrichment",
+    "b2b-data",
+    "x402",
+    "mcp",
+    "sales",
+    "email-verification",
+    "company-data",
+    "prospecting",
+    "agent-commerce",
+    "outreach"
+  ],
+  "updated_at": "2026-10-12T12:00:00Z"
+}

@@ -650,6 +650,55 @@ def preview_pack():
             "category_breakdown": cats, "leads": leads,
             "note": "Emails redacted in preview. Full JSON (verified emails + source URLs) delivered after payment."}
 
+def sample_record():
+    # Free teaser (2026-10-12): one redacted sample record + machine-readable
+    # pricing + x402 CTA. Intentionally NOT behind a 402 so agents, directories
+    # and buyers can preview the data shape before paying.
+    lead = (PACK_25.get("leads") or [{}])[0]
+    email = lead.get("contact_email") or ""
+    src = lead.get("source_url") or ""
+    return {
+        "sample_record": {
+            "company_name": lead.get("company_name") or "n/a",
+            "city_state": lead.get("city_state") or "n/a",
+            "category": (lead.get("category") or "uncategorized").strip() or "uncategorized",
+            "contact_email": mask_email(email) if email else "***",
+            "source_domain": urlparse(src).netloc if src else "",
+            "note": "Email redacted in the free sample. Full verified emails + source URLs delivered after payment.",
+        },
+        "pricing": {
+            "currency": "USDC",
+            "network": NETWORK,
+            "per_call": {
+                "/lookup": LOOKUP_PRICE_USD,
+                "/deliverability": DELIVERABILITY_PRICE_USD,
+                "/packsize": PACKSIZE_PRICE_USD,
+                "/domain-intel": DOMAININTEL_PRICE_USD,
+                "/tech-stack": TECHSTACK_PRICE_USD,
+                "/email-pattern": EMAILPATTERN_PRICE_USD,
+                "/ssl-check": SSLCHECK_PRICE_USD,
+                "/headers": HEADERS_PRICE_USD,
+                "/dns": DNS_PRICE_USD,
+                "/repo-health": REPOHEALTH_PRICE_USD,
+                "/subdomains": SUBDOMAINS_PRICE_USD,
+                "/contact-page": CONTACTPAGE_PRICE_USD,
+                "/mail-provider": MAILPROVIDER_PRICE_USD,
+            },
+            "packs": {f"scout-pack-{s}": {"leads": p["count"], "price_usd": p["price_usd"]}
+                      for s, p in PACKS.items()},
+        },
+        "how_to_buy": {
+            "step_1": "Request any paid endpoint unpaid — it returns HTTP 402 with x402 payment terms.",
+            "step_2": "Sign an EIP-3009 USDC authorization on Base (eip155:8453) for the exact amount to the payTo address, then retry with the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header.",
+            "step_3": "Data returns as JSON immediately. Manual-tx fallback: send the exact USDC yourself, then redeem via POST /fulfill* with the tx hash.",
+            "catalog": "/catalog",
+            "agent_docs": "/llms.txt",
+            "skill": "/skill.md",
+            "mcp": "/mcp",
+        },
+        "seller": "Tiger Operations",
+    }
+
 def base_url(handler):
     if PUBLIC_BASE:
         return PUBLIC_BASE.rstrip("/")
@@ -2999,6 +3048,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.landing()
             if path == "/health":
                 return self.send_json(200, {"ok": True, "sales_enabled": SALES_ENABLED})
+            if path == "/sample":
+                return self.send_json(200, sample_record())
             if path == "/catalog":
                 return self.send_json(200, self.catalog())
             if path == "/.well-known/x402":
