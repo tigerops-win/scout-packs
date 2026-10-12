@@ -4751,26 +4751,55 @@ table.eps td.d{{color:var(--muted)}}
         pass  # quiet
 
 LLMS_TXT = """# Scout Packs — Tiger Operations
-Verified B2B lead packs and per-lead enrichment lookups, sold to AI agents over
-x402 (USDC on Base, eip155:8453). Demand-probe pricing: $0.01 per lookup or pack.
+Verified B2B lead data and per-call enrichment services, sold to AI agents over
+x402 (USDC on Base, eip155:8453). Per-call pricing below; lead packs $0.01 flat
+(demand-probe pricing). Full machine-readable list: GET /catalog.
 
-## Services
-- GET /lookup?query=<company or domain> -> 402: one verified business email +
+## Per-call services (each returns HTTP 402 with x402 payment terms when unpaid)
+- GET /lookup?query=<company or domain> — one verified business email +
   source URL for the company ($0.01 USDC).
+- GET /deliverability?email=<email> (or ?domain=<domain>) — MX/SPF/DMARC,
+  disposable/role detection, bounce-risk score 0-100 ($0.03 USDC).
+- GET /packsize?title=<product title> — pack count, unit size, normalized
+  totals for unit pricing ($0.02 USDC).
+- GET /domain-intel?domain=<domain> — RDAP registration + DNS infrastructure
+  signals ($0.02 USDC).
+- GET /tech-stack?domain=<domain> — web technologies from headers + markup
+  ($0.01 USDC).
+- GET /email-pattern?domain=<domain> — likely corporate email patterns + MX
+  verification ($0.01 USDC).
+- GET /ssl-check?domain=<domain> — SSL/TLS issuer, expiry, risk flags
+  ($0.01 USDC).
+- GET /headers?domain=<domain> — security-headers audit, scored A-F
+  ($0.01 USDC).
+- GET /dns?domain=<domain> — full DNS record dump via DNS-over-HTTPS
+  ($0.01 USDC).
+- GET /repo-health?repo=<owner/name> — GitHub repo stars, forks, issues,
+  license, 90-day commit velocity ($0.01 USDC).
+- GET /subdomains?domain=<domain> — CT-log subdomain footprint, classified
+  ($0.02 USDC).
+- GET /contact-page?domain=<domain> — published emails, phones, forms,
+  address, socials from the company's own site ($0.02 USDC).
+- GET /mail-provider?domain=<domain> — mailbox host + gateway from MX records
+  ($0.01 USDC).
+
+## Lead packs
 - scout-pack-25: 25 leads, $0.01 USDC — delivered instantly as JSON after payment.
 - scout-pack-50: 50 leads, $0.01 USDC — assembled on demand, delivered within 24h.
 - scout-pack-100: 100 leads, $0.01 USDC — assembled on demand, delivered within 24h.
 Each lead: company_name, city_state, category, contact_email (verified), source_url.
 
 ## How to buy
-1. GET /lookup?query=<...> or GET /packs/{25,50,100} -> 402 with
+1. GET any service above, or GET /packs/{25,50,100} -> 402 with
    PAYMENT-REQUIRED (x402 v2) and X-PAYMENT-REQUIRED (v1) headers.
 2. Standard x402: sign an EIP-3009 authorization for the exact USDC amount on
    Base and retry with X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2). We verify +
    settle via facilitator and return the result with PAYMENT-RESPONSE /
    X-PAYMENT-RESPONSE.
    Manual fallback: send the exact USDC amount on Base to the payTo address,
-   then POST /fulfill-lookup {"tx_hash":"0x...","query":"..."} -> verified contact.
+   then POST the matching /fulfill-* endpoint, e.g.
+   POST /fulfill-lookup {"tx_hash":"0x...","query":"..."} -> verified contact;
+   POST /fulfill-domain-intel {"tx_hash":"0x...","domain":"..."} -> intel.
    POST /fulfill {"tx_hash":"0x...","pack":"25"} -> pack JSON (25) or 24h order
    receipt (50/100).
 
@@ -4778,6 +4807,8 @@ Each lead: company_name, city_state, category, contact_email (verified), source_
 - /.well-known/x402 — machine-readable payment terms (includes CDP Bazaar
   discovery extension on every paid route).
 - /catalog — service list and prices.
+- /openapi.json — OpenAPI document for every route.
+- /sample — free redacted sample record + per-call pricing.
 - /packs/25/preview — redacted sample (emails masked).
 - /skill.md — agent skill file for the lead lookup.
 - /mcp — MCP streamable-HTTP endpoint (list_packs, buy_pack, lookup_lead).

@@ -185,7 +185,7 @@
                             "type": "string"
                           },
                           "price_usd": {
-                            "example": 9,
+                            "example": 0.01,
                             "type": "number"
                           }
                         },
@@ -457,7 +457,7 @@
                       "type": "string"
                     },
                     "price_usd": {
-                      "example": 9,
+                      "example": 0.01,
                       "type": "number"
                     }
                   },
