@@ -1473,6 +1473,9 @@ def store_build_intake(rec, ip):
     with _intake_lock:
         with open(BUILD_INTAKE_PATH, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(line, ensure_ascii=False) + "\n")
+    # Durability: Railway's disk is ephemeral, so mirror every intake to stdout
+    # (captured in deploy logs) to survive redeploys.
+    print("BUILD_INTAKE " + json.dumps(line, ensure_ascii=False), flush=True)
 
 def demo_clean_domain(value):
     """Sanitize user input to a bare lowercase hostname, or None if invalid."""
