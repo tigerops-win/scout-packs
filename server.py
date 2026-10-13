@@ -3364,6 +3364,7 @@ class Handler(BaseHTTPRequestHandler):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout Packs — Published business contacts. Source-linked JSON. One payment. · Tiger Operations</title>
 <meta name="description" content="Verified B2B lead packs and per-lead enrichment lookups for agents. $0.01 per lookup or pack (demand probe). USDC on Base via x402. No account, API key, or subscription.">
+<meta name="toolfound-verify" content="39d924c9e628e918ec7089fe3b1cc8d539d184af39b30193">
 <style>
 :root{{--bg:#faf8f4;--panel:#ffffff;--line:#e4ded2;--line2:#d3cbb9;--ink:#1d2126;--muted:#5d6672;--faint:#9098a3;--amber:#b45309;--amber-dim:rgba(180,83,9,.07);--amber-line:#d9a441;--radius:12px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}}
 *{{box-sizing:border-box}}
