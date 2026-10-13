@@ -24,6 +24,7 @@ import html as html_lib
 import json
 import os
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -1372,6 +1373,83 @@ def domain_intel(domain):
 
     intel["signals"] = flags
     return intel, flags
+
+# ---------------------------------------------------------------- free /demo
+# Free, rate-limited teaser for the website "Live demo" box: reuses
+# domain_intel() (free upstreams) and returns a trimmed result. Added 2026-10-12.
+
+DEMO_IP_CAP, DEMO_IP_WINDOW = 10, 3600
+DEMO_GLOBAL_CAP, DEMO_GLOBAL_WINDOW = 300, 86400
+_demo_ip_hits = {}
+_demo_global_hits = []
+_demo_lock = threading.Lock()
+
+def demo_rate_limited(ip):
+    """Returns None if allowed, else (scope, retry_after_seconds). Records the hit."""
+    with _demo_lock:
+        return _demo_rate_limited(ip, time.time())
+
+def _demo_rate_limited(ip, now):
+    _demo_global_hits[:] = [t for t in _demo_global_hits if now - t < DEMO_GLOBAL_WINDOW]
+    if len(_demo_global_hits) >= DEMO_GLOBAL_CAP:
+        return "global_daily", int(DEMO_GLOBAL_WINDOW - (now - _demo_global_hits[0])) + 1
+    h = [t for t in _demo_ip_hits.get(ip, []) if now - t < DEMO_IP_WINDOW]
+    if len(h) >= DEMO_IP_CAP:
+        _demo_ip_hits[ip] = h
+        return "per_ip_hourly", int(DEMO_IP_WINDOW - (now - h[0])) + 1
+    h.append(now)
+    _demo_ip_hits[ip] = h
+    _demo_global_hits.append(now)
+    if len(_demo_ip_hits) > 10_000:  # bound memory
+        for k in [k for k, v in _demo_ip_hits.items() if not v or now - v[-1] >= DEMO_IP_WINDOW]:
+            _demo_ip_hits.pop(k, None)
+    return None
+
+def demo_clean_domain(value):
+    """Sanitize user input to a bare lowercase hostname, or None if invalid."""
+    d = (value or "").strip().lower()
+    if len(d) > 300:
+        return None
+    d = re.sub(r"^[a-z][a-z0-9+.-]*://", "", d)
+    d = re.split(r"[/?#]", d, 1)[0]
+    if "@" in d:
+        d = d.rpartition("@")[2]
+    d = d.split(":", 1)[0].rstrip(".")
+    if d.startswith("www."):
+        d = d[4:]
+    if len(d) > 253 or not re.fullmatch(r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}", d):
+        return None
+    return d
+
+def demo_intel(domain):
+    """Trimmed free domain-intel. Returns a JSON-able dict."""
+    intel, flags = domain_intel(domain)
+    reg = intel.get("registration", {})
+    dns = intel.get("dns", {})
+    mx_hosts = [str(h).lower() for h in dns.get("mx_hosts", [])]
+    provider = "none" if not mx_hosts else "other"
+    for pname, pats in PROVIDER_PATTERNS:
+        if any(p in h for h in mx_hosts for p in pats):
+            provider = pname
+            break
+    aaaa = doh_query(intel["domain"], "AAAA")
+    return {
+        "domain": intel["domain"],
+        "registrar": reg.get("registrar") or None,
+        "created": reg.get("created") or None,
+        "domain_age_days": intel.get("domain_age_days"),
+        "nameservers": dns.get("nameservers", []),
+        "mail": {"provider": provider, "mx_found": bool(mx_hosts), "mx_hosts": mx_hosts},
+        "a_records": {"count": dns.get("a_record_count", 0), "sample": dns.get("a_records", [])[:3]},
+        "aaaa_records": {"count": len(aaaa), "sample": aaaa[:3]},
+        "full_version": {
+            "endpoint": "/domain-intel",
+            "price_usd": DOMAININTEL_PRICE_USD,
+            "note": ("Free demo, trimmed. The paid /domain-intel ($0.02/call via x402) adds "
+                     "expiry/updated dates, status codes, registrant org, risk signals "
+                     "(young domain, privacy-protected, no MX), and no demo rate limits."),
+        },
+    }
 
 def verify_domainintel_payment(tx_hash):
     """Returns (ok, detail) for $0.02 domain-intel payments."""
@@ -3021,11 +3099,23 @@ class Handler(BaseHTTPRequestHandler):
         self._hits[ip] = h
         return len(h) > cap
 
+    CORS_PATHS = ("/demo", "/sample", "/catalog", "/llms.txt", "/health")
+
+    def cors_header(self):
+        if (urlparse(self.path).path.rstrip("/") or "/") in self.CORS_PATHS:
+            self.send_header("Access-Control-Allow-Origin", "*")
+
+    def client_ip(self):
+        # Last hop = IP appended by Railway's edge; earlier entries are client-controlled.
+        fwd = self.headers.get("X-Forwarded-For", "")
+        return fwd.split(",")[-1].strip() or self.client_address[0]
+
     def send_json(self, code, obj, extra_headers=None):
         body = json.dumps(obj).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self.cors_header()
         for k, v in (extra_headers or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -3036,8 +3126,21 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
+        self.cors_header()
         self.end_headers()
         self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        if path not in self.CORS_PATHS:
+            return self.send_json(404, {"error": "not_found"})
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_GET(self):
         if self.limited():
@@ -3050,6 +3153,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(200, {"ok": True, "sales_enabled": SALES_ENABLED})
             if path == "/sample":
                 return self.send_json(200, sample_record())
+            if path == "/demo":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = demo_clean_domain(unquote_plus(params.get("domain", "")))
+                if not domain:
+                    return self.send_json(400, {"error": "invalid_domain",
+                                                "detail": "Pass ?domain=example.com (bare hostname)."})
+                hit = demo_rate_limited(self.client_ip())
+                if hit:
+                    return self.send_json(429, {"error": "rate_limited", "scope": hit[0],
+                                                "retry_after_seconds": hit[1],
+                                                "paid_alternative": "/domain-intel ($0.02/call, no demo limits)"},
+                                          {"Retry-After": str(hit[1])})
+                return self.send_json(200, demo_intel(domain))
             if path == "/catalog":
                 return self.send_json(200, self.catalog())
             if path == "/.well-known/x402":
