@@ -1405,6 +1405,75 @@ def _demo_rate_limited(ip, now):
             _demo_ip_hits.pop(k, None)
     return None
 
+# ---------------------------------------------------------------- /build-intake
+# Tiger Builds intake form (tigeroperations site builds.html). Validates and
+# appends one JSON line per submission; never echoes stored data, no listing
+# route. Rate limit: 5/hour/IP + global daily cap. Added 2026-10-12.
+# NOTE: set BUILD_INTAKE_PATH to a mounted volume in production, otherwise the
+# file lives on the container's ephemeral disk and is lost on redeploy.
+
+BUILD_INTAKE_PATH = os.environ.get("BUILD_INTAKE_PATH", "").strip() or os.path.join(BASE_DIR, "build_intakes.jsonl")
+INTAKE_IP_CAP, INTAKE_IP_WINDOW = 5, 3600
+INTAKE_GLOBAL_CAP, INTAKE_GLOBAL_WINDOW = 200, 86400
+INTAKE_MAX_BODY = 16_384
+_intake_ip_hits = {}
+_intake_global_hits = []
+_intake_lock = threading.Lock()
+
+def intake_rate_limited(ip, now=None):
+    """Returns None if allowed, else (scope, retry_after_seconds). Records the hit."""
+    now = time.time() if now is None else now
+    with _intake_lock:
+        _intake_global_hits[:] = [t for t in _intake_global_hits if now - t < INTAKE_GLOBAL_WINDOW]
+        if len(_intake_global_hits) >= INTAKE_GLOBAL_CAP:
+            return "global_daily", int(INTAKE_GLOBAL_WINDOW - (now - _intake_global_hits[0])) + 1
+        h = [t for t in _intake_ip_hits.get(ip, []) if now - t < INTAKE_IP_WINDOW]
+        if len(h) >= INTAKE_IP_CAP:
+            _intake_ip_hits[ip] = h
+            return "per_ip_hourly", int(INTAKE_IP_WINDOW - (now - h[0])) + 1
+        h.append(now)
+        _intake_ip_hits[ip] = h
+        _intake_global_hits.append(now)
+        if len(_intake_ip_hits) > 10_000:  # bound memory
+            for k in [k for k, v in _intake_ip_hits.items() if not v or now - v[-1] >= INTAKE_IP_WINDOW]:
+                _intake_ip_hits.pop(k, None)
+        return None
+
+_INTAKE_LIMITS = {"business_name": 200, "email": 254, "trade": 200, "current_tool": 300}
+
+def validate_build_intake(data):
+    """Returns (record, None) on success or (None, error_dict)."""
+    if not isinstance(data, dict):
+        return None, {"error": "invalid_json", "detail": "body must be a JSON object"}
+    rec, bad = {}, []
+    for f in ("business_name", "email", "trade", "problem"):
+        v = data.get(f)
+        if not isinstance(v, str) or not v.strip():
+            bad.append(f)
+        else:
+            rec[f] = v.strip()
+    if bad:
+        return None, {"error": "missing_fields", "fields": bad}
+    if "@" not in rec["email"] or any(c.isspace() for c in rec["email"]):
+        return None, {"error": "invalid_email"}
+    if not 10 <= len(rec["problem"]) <= 4000:
+        return None, {"error": "invalid_problem", "detail": "problem must be 10-4000 characters"}
+    tool = data.get("current_tool")
+    if tool is not None and not isinstance(tool, str):
+        return None, {"error": "invalid_current_tool"}
+    rec["current_tool"] = (tool or "").strip()
+    for f, lim in _INTAKE_LIMITS.items():
+        if len(rec[f]) > lim:
+            return None, {"error": "field_too_long", "field": f, "max": lim}
+    return rec, None
+
+def store_build_intake(rec, ip):
+    line = dict(rec, received_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                ip_hash=hashlib.sha256(ip.encode()).hexdigest()[:16])
+    with _intake_lock:
+        with open(BUILD_INTAKE_PATH, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(line, ensure_ascii=False) + "\n")
+
 def demo_clean_domain(value):
     """Sanitize user input to a bare lowercase hostname, or None if invalid."""
     d = (value or "").strip().lower()
@@ -3099,7 +3168,8 @@ class Handler(BaseHTTPRequestHandler):
         self._hits[ip] = h
         return len(h) > cap
 
-    CORS_PATHS = ("/demo", "/sample", "/catalog", "/llms.txt", "/health")
+    CORS_PATHS = ("/demo", "/sample", "/catalog", "/llms.txt", "/health", "/build-intake")
+    CORS_POST_PATHS = ("/build-intake",)
 
     def cors_header(self):
         if (urlparse(self.path).path.rstrip("/") or "/") in self.CORS_PATHS:
@@ -3136,7 +3206,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(404, {"error": "not_found"})
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods",
+                         "POST, OPTIONS" if path in self.CORS_POST_PATHS else "GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Access-Control-Max-Age", "86400")
         self.send_header("Content-Length", "0")
@@ -3326,11 +3397,38 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_repohealth()
             if path == "/mcp":
                 return self.proxy_mcp()
+            if path == "/build-intake":
+                return self.build_intake()
             return self.send_json(404, {"error": "not_found"})
         except Exception:
             return self.send_json(500, {"error": "internal"})
 
     # -- routes
+    def build_intake(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except ValueError:
+            length = -1
+        if length <= 0 or length > INTAKE_MAX_BODY:
+            return self.send_json(413 if length > INTAKE_MAX_BODY else 400,
+                                  {"error": "invalid_body_length", "max_bytes": INTAKE_MAX_BODY})
+        raw = self.rfile.read(length)
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            return self.send_json(400, {"error": "invalid_json"})
+        rec, err = validate_build_intake(data)
+        if err:
+            return self.send_json(400, err)
+        ip = self.client_ip()
+        hit = intake_rate_limited(ip)
+        if hit:
+            return self.send_json(429, {"error": "rate_limited", "scope": hit[0],
+                                        "retry_after_seconds": hit[1]},
+                                  {"Retry-After": str(hit[1])})
+        store_build_intake(rec, ip)
+        return self.send_json(201, {"ok": True})
+
     def landing(self):
         leads = PACK_25.get("leads", [])
         feat = leads[7] if len(leads) > 7 else leads[0]
