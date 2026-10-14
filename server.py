@@ -66,28 +66,20 @@ LOOKUP_PRICE_USD = 0.01
 LOOKUP_AMOUNT = 10_000  # $0.01 in 6-decimal USDC
 # Keyword-tuned for Agent402 router text-match: lead / enrichment / b2b /
 # contact lookup / email.
-LOOKUP_DESC = ("Lead data — people search: company enrichment that finds a verified "
-               "business email + source URL for any company or domain. Apollo-style "
-               "email enrichment and validation for B2B lead data. One lookup per call. "
-               "Tiger Operations.")
+LOOKUP_DESC = 'Lead data — people search: company enrichment that finds a verified business email + source URL for any company or domain. Apollo-style email enrichment and validation for B2B lead data. One lookup per call. Tiger Operations. Use when you need a verified contact email for a named company or domain before outreach.'
 
 # Email deliverability score (2026-10-05: model-consensus build #1 — every
 # sender agent needs it; no deliverability listing on PayAPI). $0.03/lookup.
 DELIVERABILITY_PRICE_USD = 0.03
 DELIVERABILITY_AMOUNT = 30_000  # $0.03 in 6-decimal USDC
-DELIVERABILITY_DESC = ("Email verification — MX/SPF/DMARC checks, disposable-domain "
-                       "and role-account detection, with bounce-risk score 0-100 and "
-                       "send/caution/do_not_send verdict. Email enrichment and validation "
-                       "for lead data. One email or domain per call. Tiger Operations.")
+DELIVERABILITY_DESC = 'Email verification — MX/SPF/DMARC checks, disposable-domain and role-account detection, with bounce-risk score 0-100 and send/caution/do_not_send verdict. Email enrichment and validation for lead data. One email or domain per call. Tiger Operations. Use when you are about to send email and need a bounce-risk verdict on an address or domain first.'
 
 # Pack-size identity resolver (2026-10-05: idea #23 from the 100-idea blueprint,
 # priority 3/100 — the parser/rules core as a pure x402 data endpoint, no
 # customer data needed). $0.02/call.
 PACKSIZE_PRICE_USD = 0.02
 PACKSIZE_AMOUNT = 20_000  # $0.02 in 6-decimal USDC
-PACKSIZE_DESC = ("Pack-size identity resolver — parse a product title into pack count, "
-                 "unit size, and normalized totals for comparable unit pricing. "
-                 "Deterministic, no customer data needed. Tiger Operations.")
+PACKSIZE_DESC = 'Pack-size identity resolver — parse a product title into pack count, unit size, and normalized totals for comparable unit pricing. Deterministic, no customer data needed. Tiger Operations. Use when you must normalize pack counts and unit sizes across product listings for price comparison.'
 
 # CDP Bazaar discovery extension — hand-rolled wire equivalent of
 # declareDiscoveryExtension() from @x402/extensions v2 (query/GET variant;
@@ -450,19 +442,28 @@ def x402_incoming_payment(headers):
         return 2, v2.strip()
     return None, None
 
-def x402_requirements(version, resource_url, amount, description):
+def x402_requirements(version, resource_url, amount, description, bazaar=None):
     """paymentRequirements for the facilitator, shaped per protocol version.
 
     v1: maxAmountRequired + short network name + string resource.
     v2: amount + CAIP-2 network (resource lives top-level in the 402; the
-    facilitator reference omits it here)."""
+    facilitator reference omits it here).
+
+    When `bazaar` (the route's BAZAAR_* declaration) is given, it is carried
+    in the requirements' extensions so settle_x402_payment() can forward it
+    to the facilitator — Bazaar cataloguing extracts the declaration from
+    the settled payment, and not every buyer client echoes the 402's
+    top-level extensions into its payment payload."""
     req = {
         "scheme": "exact",
         "asset": USDC_BASE,
         "payTo": RECEIVING,
         "maxTimeoutSeconds": 300,
         "extra": {"name": "USD Coin", "version": "2"},
+        "description": description,
     }
+    if bazaar is not None:
+        req["extensions"] = {"bazaar": bazaar}
     if version == 2:
         req["network"] = NETWORK_V2
         req["amount"] = str(amount)
@@ -497,6 +498,11 @@ def settle_x402_payment(version, payment_b64, requirements):
     body = {"x402Version": version, "paymentPayload": payload,
             "paymentHeader": payment_b64,
             "paymentRequirements": requirements}
+    # Forward the Bazaar discovery declaration to the facilitator at the top
+    # level of the verify/settle body as well as inside the requirements, so
+    # a CDP settlement reliably carries it regardless of client behaviour.
+    if isinstance(requirements, dict) and requirements.get("extensions"):
+        body["extensions"] = requirements["extensions"]
     try:
         v = post_json(FACILITATOR_URL + "/verify", body)
     except Exception:
@@ -712,7 +718,7 @@ def payment_terms(handler, pack_size):
     resource = f"{base}/packs/{pack_size}"
     desc = (f"Lead data — Scout Pack {p['count']}: {p['count']} verified B2B leads "
             f"as JSON (people search results with verified business emails, ready "
-            f"for outreach). Tiger Operations.")
+            f"for outreach). Tiger Operations. Use when you need a ready-made batch of verified B2B leads for outreach instead of one-by-one lookups.")
     accept = {
         "scheme": "exact",
         "network": NETWORK,
@@ -1268,10 +1274,7 @@ def packsize_paywall_body(handler, title, price):
 
 DOMAININTEL_PRICE_USD = 0.02
 DOMAININTEL_AMOUNT = 20_000  # $0.02 in 6-decimal USDC
-DOMAININTEL_DESC = ("Company enrichment from domain — RDAP registration data (registrar, "
-                    "creation/expiry dates, status) plus DNS infrastructure signals "
-                    "(nameservers, A records, mail exchanger presence). Lead data for "
-                    "B2B prospecting. One domain per call. Tiger Operations.")
+DOMAININTEL_DESC = 'Company enrichment from domain — RDAP registration data (registrar, creation/expiry dates, status) plus DNS infrastructure signals (nameservers, A records, mail exchanger presence). Lead data for B2B prospecting. One domain per call. Tiger Operations. Use when vetting a company or domain and you need its registration age, registrar, and infrastructure signals.'
 
 PRIVACY_REGISTRAR_HINTS = ("privacy", "whoisguard", "whois guard", "domains by proxy",
                            "redacted", "withheld", "private", "guard")
@@ -1969,7 +1972,7 @@ def ssl_check(domain):
 
 TECHSTACK_PRICE_USD = 0.01
 TECHSTACK_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-TECHSTACK_DESC = ("Company enrichment from domain — tech-stack detection: identify the web technologies powering a domain (CMS, frameworks, analytics, CDNs) from HTTP headers and page markup, with per-technology confidence and evidence. Lead data for B2B prospecting. One domain per call. Tiger Operations.")
+TECHSTACK_DESC = 'Company enrichment from domain — tech-stack detection: identify the web technologies powering a domain (CMS, frameworks, analytics, CDNs) from HTTP headers and page markup, with per-technology confidence and evidence. Lead data for B2B prospecting. One domain per call. Tiger Operations. Use when qualifying a prospect and you need to know which technologies power its website.'
 
 def verify_techstack_payment(tx_hash):
     """Returns (ok, detail) for $0.01 tech-stack payments."""
@@ -2054,7 +2057,7 @@ def techstack_paywall_body(handler, domain):
     }
 EMAILPATTERN_PRICE_USD = 0.01
 EMAILPATTERN_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-EMAILPATTERN_DESC = ("Email enrichment and validation — the most likely corporate email address patterns for a domain (first.last@, first@, flast@, ...) plus MX verification so you know it can receive mail. Apollo-style email verification for lead data. One domain per call. Tiger Operations.")
+EMAILPATTERN_DESC = "Email enrichment and validation — the most likely corporate email address patterns for a domain (first.last@, first@, flast@, ...) plus MX verification so you know it can receive mail. Apollo-style email verification for lead data. One domain per call. Tiger Operations. Use when you know a person's company domain and need the most likely corporate email patterns to reach them."
 
 def verify_emailpattern_payment(tx_hash):
     """Returns (ok, detail) for $0.01 email-pattern payments."""
@@ -2139,17 +2142,17 @@ def emailpattern_paywall_body(handler, domain):
     }
 SSLCHECK_PRICE_USD = 0.01
 SSLCHECK_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-SSLCHECK_DESC = ("Company enrichment from domain — SSL/TLS certificate check: issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed) for a domain's HTTPS certificate. Lead data signal for prospecting. One domain per call. Tiger Operations.")
+SSLCHECK_DESC = "Company enrichment from domain — SSL/TLS certificate check: issuer, expiry date, days remaining, TLS version, and risk flags (expired, expiring soon, self-signed) for a domain's HTTPS certificate. Lead data signal for prospecting. One domain per call. Tiger Operations. Use when auditing a domain's HTTPS health and you need certificate expiry and TLS risk flags."
 
 HEADERS_PRICE_USD = 0.01
 HEADERS_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-HEADERS_DESC = ("Security headers audit — checks HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP and CORP on a domain's HTTPS response, with a 0-100 score and A-F grade. One domain per call. Tiger Operations.")
+HEADERS_DESC = "Security headers audit — checks HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP and CORP on a domain's HTTPS response, with a 0-100 score and A-F grade. One domain per call. Tiger Operations. Use when auditing a site's browser security posture and you need a scored header check."
 DNS_PRICE_USD = 0.01
 DNS_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-DNS_DESC = ("DNS record dump — A, AAAA, MX, TXT, NS and CNAME records for a domain via DNS-over-HTTPS, plus SPF presence signal. One domain per call. Tiger Operations.")
+DNS_DESC = 'DNS record dump — A, AAAA, MX, TXT, NS and CNAME records for a domain via DNS-over-HTTPS, plus SPF presence signal. One domain per call. Tiger Operations. Use when diagnosing or mapping a domain and you need its full DNS record set in one call.'
 REPOHEALTH_PRICE_USD = 0.01
 REPOHEALTH_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-REPOHEALTH_DESC = ("GitHub repo health — stars, forks, open issues, license, archive status and 90-day commit velocity for a public repository. One repo per call. Tiger Operations.")
+REPOHEALTH_DESC = 'GitHub repo health — stars, forks, open issues, license, archive status and 90-day commit velocity for a public repository. One repo per call. Tiger Operations. Use when evaluating an open-source dependency or vendor and you need a repo maintenance-health signal.'
 
 # ---------------------------------------------------------------- wave-3 endpoints (2026-10-07)
 # /subdomains ($0.02), /contact-page ($0.02), /mail-provider ($0.01).
@@ -2158,15 +2161,15 @@ REPOHEALTH_DESC = ("GitHub repo health — stars, forks, open issues, license, a
 
 SUBDOMAINS_PRICE_USD = 0.02
 SUBDOMAINS_AMOUNT = 20000  # $0.02 in 6-decimal USDC
-SUBDOMAINS_DESC = ("Subdomain intelligence — live subdomain footprint from Certificate Transparency logs (crt.sh), classified into intent categories (api/dev, commerce, careers, docs/support, marketing, status/infra, staging/test). One domain per call. Tiger Operations.")
+SUBDOMAINS_DESC = "Subdomain intelligence — live subdomain footprint from Certificate Transparency logs (crt.sh), classified into intent categories (api/dev, commerce, careers, docs/support, marketing, status/infra, staging/test). One domain per call. Tiger Operations. Use when mapping a company's attack surface or footprint and you need its live subdomains classified by intent."
 
 CONTACTPAGE_PRICE_USD = 0.02
 CONTACTPAGE_AMOUNT = 20000  # $0.02 in 6-decimal USDC
-CONTACTPAGE_DESC = ("Public contact extraction — published emails (role vs personal), phone numbers, contact-form presence, address and social links from a company's own public website (homepage + contact/about pages). One domain per call. Tiger Operations.")
+CONTACTPAGE_DESC = "Public contact extraction — published emails (role vs personal), phone numbers, contact-form presence, address and social links from a company's own public website (homepage + contact/about pages). One domain per call. Tiger Operations. Use when you need a company's published contact channels without scraping its site yourself."
 
 MAILPROVIDER_PRICE_USD = 0.01
 MAILPROVIDER_AMOUNT = 10000  # $0.01 in 6-decimal USDC
-MAILPROVIDER_DESC = ("Email provider identification — mailbox host (Google Workspace, Microsoft 365, Zoho, Proton, etc.) plus gateway detection (Mimecast, Proofpoint, Barracuda) from MX records via DNS-over-HTTPS. One domain per call. Tiger Operations.")
+MAILPROVIDER_DESC = "Email provider identification — mailbox host (Google Workspace, Microsoft 365, Zoho, Proton, etc.) plus gateway detection (Mimecast, Proofpoint, Barracuda) from MX records via DNS-over-HTTPS. One domain per call. Tiger Operations. Use when segmenting prospects by email stack and you need to identify a domain's mailbox provider and security gateway."
 
 def verify_sslcheck_payment(tx_hash):
     """Returns (ok, detail) for $0.01 ssl-check payments."""
@@ -3853,7 +3856,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(404, {"error": "no_match", "query": query,
                 "hint": "No verified contact found for this query in the current database."})
         resource = f"{base_url(self)}/lookup?query={query}"
-        req = x402_requirements(version, resource, LOOKUP_AMOUNT, LOOKUP_DESC)
+        req = x402_requirements(version, resource, LOOKUP_AMOUNT, LOOKUP_DESC, BAZAAR_LOOKUP)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -3900,7 +3903,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = f"{base_url(self)}/deliverability?target={target}"
-        req = x402_requirements(version, resource, DELIVERABILITY_AMOUNT, DELIVERABILITY_DESC)
+        req = x402_requirements(version, resource, DELIVERABILITY_AMOUNT, DELIVERABILITY_DESC, BAZAAR_DELIVERABILITY)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -3985,7 +3988,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = f"{base_url(self)}/domain-intel?domain={domain}"
-        req = x402_requirements(version, resource, DOMAININTEL_AMOUNT, DOMAININTEL_DESC)
+        req = x402_requirements(version, resource, DOMAININTEL_AMOUNT, DOMAININTEL_DESC, BAZAAR_DOMAININTEL)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4062,7 +4065,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = f"{base_url(self)}/tech-stack?domain={domain}"
-        req = x402_requirements(version, resource, TECHSTACK_AMOUNT, TECHSTACK_DESC)
+        req = x402_requirements(version, resource, TECHSTACK_AMOUNT, TECHSTACK_DESC, BAZAAR_TECHSTACK)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4144,7 +4147,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = f"{base_url(self)}/email-pattern?domain={domain}"
-        req = x402_requirements(version, resource, EMAILPATTERN_AMOUNT, EMAILPATTERN_DESC)
+        req = x402_requirements(version, resource, EMAILPATTERN_AMOUNT, EMAILPATTERN_DESC, BAZAAR_EMAILPATTERN)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4226,7 +4229,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = f"{base_url(self)}/ssl-check?domain={domain}"
-        req = x402_requirements(version, resource, SSLCHECK_AMOUNT, SSLCHECK_DESC)
+        req = x402_requirements(version, resource, SSLCHECK_AMOUNT, SSLCHECK_DESC, BAZAAR_SSLCHECK)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4308,7 +4311,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = base_url(self) + "/headers?domain=" + domain
-        req = x402_requirements(version, resource, HEADERS_AMOUNT, HEADERS_DESC)
+        req = x402_requirements(version, resource, HEADERS_AMOUNT, HEADERS_DESC, BAZAAR_HEADERS)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4390,7 +4393,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = base_url(self) + "/dns?domain=" + domain
-        req = x402_requirements(version, resource, DNS_AMOUNT, DNS_DESC)
+        req = x402_requirements(version, resource, DNS_AMOUNT, DNS_DESC, BAZAAR_DNS)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4472,7 +4475,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = base_url(self) + "/subdomains?domain=" + domain
-        req = x402_requirements(version, resource, SUBDOMAINS_AMOUNT, SUBDOMAINS_DESC)
+        req = x402_requirements(version, resource, SUBDOMAINS_AMOUNT, SUBDOMAINS_DESC, BAZAAR_SUBDOMAINS)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4554,7 +4557,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = base_url(self) + "/contact-page?domain=" + domain
-        req = x402_requirements(version, resource, CONTACTPAGE_AMOUNT, CONTACTPAGE_DESC)
+        req = x402_requirements(version, resource, CONTACTPAGE_AMOUNT, CONTACTPAGE_DESC, BAZAAR_CONTACTPAGE)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4636,7 +4639,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = base_url(self) + "/mail-provider?domain=" + domain
-        req = x402_requirements(version, resource, MAILPROVIDER_AMOUNT, MAILPROVIDER_DESC)
+        req = x402_requirements(version, resource, MAILPROVIDER_AMOUNT, MAILPROVIDER_DESC, BAZAAR_MAILPROVIDER)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4718,7 +4721,7 @@ table.eps td.d{{color:var(--muted)}}
             return self.send_json(402, {"error": "payment_required",
                                         "detail": "sales_paused"})
         resource = base_url(self) + "/repo-health?repo=" + repo
-        req = x402_requirements(version, resource, REPOHEALTH_AMOUNT, REPOHEALTH_DESC)
+        req = x402_requirements(version, resource, REPOHEALTH_AMOUNT, REPOHEALTH_DESC, BAZAAR_REPOHEALTH)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4827,7 +4830,7 @@ table.eps td.d{{color:var(--muted)}}
                                         "detail": "sales_paused"})
         q = f"title={title}" + (f"&price={price}" if price else "")
         resource = f"{base_url(self)}/packsize?{q}"
-        req = x402_requirements(version, resource, PACKSIZE_AMOUNT, PACKSIZE_DESC)
+        req = x402_requirements(version, resource, PACKSIZE_AMOUNT, PACKSIZE_DESC, BAZAAR_PACKSIZE)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
@@ -4868,8 +4871,8 @@ table.eps td.d{{color:var(--muted)}}
         resource = f"{base}/packs/{size}"
         desc = (f"Lead data — Scout Pack {p['count']}: {p['count']} verified B2B leads "
                 f"as JSON (people search results with verified business emails, ready "
-                "for outreach). Tiger Operations.")
-        req = x402_requirements(version, resource, p["amount"], desc)
+                "for outreach). Tiger Operations. Use when you need a ready-made batch of verified B2B leads for outreach instead of one-by-one lookups.")
+        req = x402_requirements(version, resource, p["amount"], desc, BAZAAR_PACK)
         ok, info = settle_x402_payment(version, payment_b64, req)
         if not ok:
             return self.send_json(402, {"error": "payment_not_verified",
