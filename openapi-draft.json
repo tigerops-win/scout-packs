@@ -1118,6 +1118,71 @@
       "summary": "SSL certificate check",
       "description": "TLS cert details and risk flags. $0.01 USDC per call on Base via x402."
     },
+    "/dossier": {
+      "get": {
+        "summary": "Company enrichment from domain: composite domain dossier — $0.05 USDC per call (x402, Base)",
+        "description": "Company enrichment from domain: composite domain dossier — RDAP registration + DNS infrastructure signals, tech-stack detection, likely corporate email patterns + MX verification, and SSL/TLS certificate health for one domain, fused into a single response with an aggregated signals list. Lead data for B2B prospecting. Paid via x402 signed settlement. Use when vetting a company or domain and you need its full registration, infrastructure, technology, email, and certificate picture in one call instead of four separate calls.",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Domain to investigate (e.g. 'acme.com')."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Composite domain dossier (paid)"
+          },
+          "402": {
+            "description": "Payment required (x402)"
+          },
+          "400": {
+            "description": "Missing domain"
+          }
+        }
+      },
+      "summary": "Composite domain dossier",
+      "description": "Domain intel + tech stack + email patterns + SSL check in one call. $0.05 USDC per call on Base via x402."
+    },
+    "/fulfill-dossier": {
+      "post": {
+        "summary": "Manual fulfillment for composite domain dossier",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tx_hash": {
+                    "type": "string"
+                  },
+                  "domain": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tx_hash",
+                  "domain"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Composite domain dossier delivered"
+          },
+          "402": {
+            "description": "Payment not verified"
+          }
+        }
+      }
+    },
     "/fulfill-ssl-check": {
       "post": {
         "summary": "Manual fulfillment for domain intelligence",

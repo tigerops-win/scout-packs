@@ -252,6 +252,34 @@ BAZAAR_SSLCHECK = bazaar_ext(
      "signals": [], "receipt": "ok"},
 )
 
+BAZAAR_DOSSIER = bazaar_ext(
+    {"domain": {"type": "string",
+                "description": "Domain to build the composite dossier for (e.g. 'acme.com'). An email address also works; the domain part is used.",
+                "required": True, "example": "acme.com"}},
+    {"domain": {"type": "string"},
+     "domain_intel": {"type": "object"},
+     "tech_stack": {"type": "object"},
+     "email_pattern": {"type": "object"},
+     "ssl_check": {"type": "object"},
+     "signals": {"type": "array"},
+     "sections": {"type": "array"},
+     "receipt": {"type": "string"}},
+    {"domain": "acme.com",
+     "domain_intel": {"registration": {"registrar": "Example Registrar", "created": "2001-05-03"},
+                      "dns": {"a": ["93.184.216.34"]}, "domain_age_days": 9280,
+                      "signals": ["aged-domain"]},
+     "tech_stack": {"domain": "acme.com", "technologies": ["nginx", "wordpress"],
+                    "server_header": "nginx", "signals": []},
+     "email_pattern": {"domain": "acme.com", "patterns": ["{first}.{last}"],
+                       "mx_found": True, "catch_all_unknown": False, "signals": []},
+     "ssl_check": {"domain": "acme.com", "valid": True, "issuer": "Let's Encrypt",
+                   "expires": "2027-01-01", "days_remaining": 85, "tls_version": "TLSv1.3",
+                   "signals": []},
+     "signals": ["aged-domain"],
+     "sections": ["domain-intel", "tech-stack", "email-pattern", "ssl-check"],
+     "receipt": "ok"},
+)
+
 BAZAAR_HEADERS = bazaar_ext(
     {"domain": {"type": "string",
                 "description": "Domain to audit (e.g. 'acme.com').",
@@ -690,6 +718,7 @@ def sample_record():
                 "/subdomains": SUBDOMAINS_PRICE_USD,
                 "/contact-page": CONTACTPAGE_PRICE_USD,
                 "/mail-provider": MAILPROVIDER_PRICE_USD,
+                "/dossier": DOSSIER_PRICE_USD,
             },
             "packs": {f"scout-pack-{s}": {"leads": p["count"], "price_usd": p["price_usd"]}
                       for s, p in PACKS.items()},
@@ -2253,6 +2282,143 @@ def sslcheck_paywall_body(handler, domain):
         ],
     }
 
+# ---------------------------------------------------------------- dossier
+# Composite dossier: fuses domain-intel + tech-stack + email-pattern +
+# ssl-check into ONE call. 100% free upstreams (the same ones the four source
+# endpoints use), zero marginal cost. $0.05/call = exact sum of the parts
+# ($0.02 + $0.01 + $0.01 + $0.01); the buyer's saving is 3 x402 payment
+# round-trips and all client-side stitching. Spec + price rationale:
+# dossier/SPEC.md. Same x402 v1+v2 + manual-tx wiring as ssl-check.
+# Added 2026-10-16 (local build; see dossier/HANDOFF.md for deploy steps).
+
+DOSSIER_PRICE_USD = 0.05
+DOSSIER_AMOUNT = 50_000  # $0.05 in 6-decimal USDC
+DOSSIER_DESC = 'Company enrichment from domain — composite domain dossier: RDAP registration + DNS infrastructure signals, tech-stack detection, likely corporate email patterns + MX verification, and SSL/TLS certificate health for one domain, fused into a single response with an aggregated signals list. Lead data for B2B prospecting. One domain per call. Tiger Operations. Use when vetting a company or domain and you need its full registration, infrastructure, technology, email, and certificate picture in one call instead of four separate calls.'
+
+DOSSIER_SECTIONS = ["domain-intel", "tech-stack", "email-pattern", "ssl-check"]
+
+def dossier(domain):
+    """Fuse the four domain signals into one dossier. Returns the fused dict.
+
+    Each section is the verbatim result of its source function plus that
+    section's signals, exactly as the source endpoint's paid handler emits
+    them (domain_intel()'s result already carries its signals list).
+    The top-level signals list is the sections' signals concatenated in
+    section order (domain-intel, tech-stack, email-pattern, ssl-check),
+    duplicates dropped keeping first occurrence — no other derived logic.
+    """
+    raw = (domain or "").strip().lower()
+    if "@" in raw:
+        raw = raw.partition("@")[2]
+    raw = raw.strip()
+
+    intel, di_flags = domain_intel(raw)
+    tech, tech_flags = tech_stack(raw)
+    emailp, email_flags = email_pattern(raw)
+    sslr, ssl_flags = ssl_check(raw)
+
+    tech_section = {**tech, "signals": _active_flags(tech_flags)}
+    email_section = {**emailp, "signals": _active_flags(email_flags)}
+    ssl_section = {**sslr, "signals": _active_flags(ssl_flags)}
+
+    signals = []
+    for sig in list(di_flags or []) + tech_section["signals"] + \
+            email_section["signals"] + ssl_section["signals"]:
+        if sig not in signals:
+            signals.append(sig)
+
+    return {
+        "domain": intel.get("domain", raw),
+        "domain_intel": intel,
+        "tech_stack": tech_section,
+        "email_pattern": email_section,
+        "ssl_check": ssl_section,
+        "signals": signals,
+        "sections": list(DOSSIER_SECTIONS),
+    }
+
+def verify_dossier_payment(tx_hash):
+    """Returns (ok, detail) for $0.05 dossier payments."""
+    if not SALES_ENABLED:
+        return False, "sales_paused: receiving address not configured"
+    if not TX_RE.match(tx_hash or ""):
+        return False, "bad_tx_hash"
+    tx_hash = tx_hash.lower()
+    redeemed = load_redeemed()
+    if tx_hash in redeemed:
+        return False, "already_redeemed"
+    try:
+        tx = blockscout_tx(tx_hash)
+    except urllib.error.HTTPError as ex:
+        return (False, "tx_not_found") if ex.code == 404 else (False, f"chain_lookup_failed:{ex.code}")
+    except Exception:
+        return False, "chain_lookup_failed"
+    if str(tx.get("status", "")).lower() != "ok":
+        return False, "tx_not_successful"
+    for t in tx.get("token_transfers", []) or []:
+        try:
+            tok_obj = t.get("token") or {}
+            tok = (tok_obj.get("address_hash") or tok_obj.get("address") or "").lower()
+            to = (t.get("to") or {}).get("hash", "").lower()
+            val = int((t.get("total") or {}).get("value", 0))
+            sender = (t.get("from") or {}).get("hash", "").lower()
+        except (ValueError, TypeError):
+            continue
+        if tok == USDC_BASE.lower() and to == RECEIVING and val >= DOSSIER_AMOUNT:
+            redeemed.add(tx_hash)
+            save_redeemed(redeemed)
+            return True, {"sender": sender, "value": val}
+    return False, "no_matching_usdc_transfer"
+
+def dossier_payment_terms(handler, domain):
+    base = base_url(handler)
+    resource = f"{base}/dossier?domain={domain}"
+    accept = {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": str(DOSSIER_AMOUNT),
+        "description": DOSSIER_DESC,
+        "mimeType": "application/json",
+        "payTo": RECEIVING if SALES_ENABLED else ZERO,
+        "maxTimeoutSeconds": 300,
+        "asset": USDC_BASE,
+        "extra": {"name": "USD Coin", "version": "2"},
+        "extensions": {"bazaar": BAZAAR_DOSSIER},
+    }
+    return {
+        "x402Version": 2,
+        "accepts": [accept],
+        "resource": {"url": resource, "description": DOSSIER_DESC, "mimeType": "application/json"},
+        "extensions": {"bazaar": BAZAAR_DOSSIER},
+        "sales_enabled": SALES_ENABLED,
+        **({} if SALES_ENABLED else {"error": "Sales paused: seller receiving address not configured yet."}),
+    }
+
+def dossier_paywall_body(handler, domain):
+    terms = dossier_payment_terms(handler, domain)
+    return {
+        "error": "payment_required",
+        "service": "dossier",
+        "domain": domain,
+        "price_usd": DOSSIER_PRICE_USD,
+        "currency": "USDC",
+        "network": NETWORK,
+        "sales_enabled": SALES_ENABLED,
+        "x402": terms,
+        "how_to_pay": [
+            ("1. Standard x402: sign an EIP-3009 authorization for exactly "
+             f"${DOSSIER_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'} and retry this request "
+             "with the signature in the X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2) header. "
+             "We verify + settle via facilitator and return the result immediately."),
+            ("2. Manual: send exactly "
+             f"${DOSSIER_PRICE_USD:.2f} USDC on Base to "
+             f"{RECEIVING if SALES_ENABLED else '(address pending)'}, then POST /fulfill-dossier "
+             "with {\"tx_hash\": \"0x...\", \"domain\": \"" + domain + "\"}"),
+            "3. Receive the composite dossier: domain intel, tech stack, email patterns, and SSL check in one response.",
+        ],
+    }
+
 # ---------------------------------------------------------------- wave-2 penny endpoints
 # headers / dns / repo-health: $0.01/call each, 100% free upstreams
 # (target's own HTTPS response headers, Cloudflare DoH, GitHub public REST API),
@@ -3322,6 +3488,13 @@ class Handler(BaseHTTPRequestHandler):
                 # 402 before validation (origin probes)
 
                 return self.sslcheck_paywall(domain)
+            if path == "/dossier":
+                qs = urlparse(self.path).query
+                params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+                domain = unquote_plus(params.get("domain", params.get("email", ""))).strip()
+                # 402 before validation (origin probes)
+
+                return self.dossier_paywall(domain)
             if path == "/headers":
                 qs = urlparse(self.path).query
                 params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
@@ -3389,6 +3562,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.fulfill_emailpattern()
             if path == "/fulfill-ssl-check":
                 return self.fulfill_sslcheck()
+            if path == "/fulfill-dossier":
+                return self.fulfill_dossier()
             if path == "/fulfill-headers":
                 return self.fulfill_headers()
             if path == "/fulfill-dns":
@@ -3677,6 +3852,8 @@ table.eps td.d{{color:var(--muted)}}
                      "description": "Public contact extraction: published emails, phones, forms, address, socials."},
                     {"path": "/mail-provider", "price_usd": MAILPROVIDER_PRICE_USD,
                      "description": "Email provider identification: mailbox host + gateway from MX records."},
+                    {"path": "/dossier", "price_usd": DOSSIER_PRICE_USD,
+                     "description": "Composite domain dossier: domain intel + tech stack + email patterns + SSL check fused into one call."},
                 ],
                 "currency": "USDC", "network": NETWORK,
                 "sales_enabled": SALES_ENABLED}
@@ -3714,6 +3891,7 @@ table.eps td.d{{color:var(--muted)}}
             ("/subdomains", SUBDOMAINS_AMOUNT, SUBDOMAINS_DESC, BAZAAR_SUBDOMAINS),
             ("/contact-page", CONTACTPAGE_AMOUNT, CONTACTPAGE_DESC, BAZAAR_CONTACTPAGE),
             ("/mail-provider", MAILPROVIDER_AMOUNT, MAILPROVIDER_DESC, BAZAAR_MAILPROVIDER),
+            ("/dossier", DOSSIER_AMOUNT, DOSSIER_DESC, BAZAAR_DOSSIER),
         ):
             resources.append({"resource": f"{base}{svc_path}", "accepts": [{
                 "scheme": "exact",
@@ -4285,6 +4463,84 @@ table.eps td.d{{color:var(--muted)}}
             "signals": signals,
             "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "note": "Live TLS handshake with the domain. No upstream API.",
+        })
+
+    def dossier_paywall(self, domain):
+        version, payment_b64 = x402_incoming_payment(self.headers)
+        if payment_b64:
+            return self.serve_paid_dossier(domain, version, payment_b64)
+        body = dossier_paywall_body(self, domain)
+        terms_b64_v2 = base64.b64encode(json.dumps(body["x402"]).encode()).decode()
+        terms_v1 = {"x402Version": 1, "accepts": [{
+            "scheme": "exact", "network": NETWORK_V1, "maxAmountRequired": str(DOSSIER_AMOUNT),
+            "resource": f"{base_url(self)}/dossier?domain={domain}",
+            "description": body["x402"]["accepts"][0]["description"],
+            "mimeType": "application/json", "payTo": body["x402"]["accepts"][0]["payTo"],
+            "maxTimeoutSeconds": 300, "asset": USDC_BASE, "extra": {"name": "USD Coin", "version": "2"}}], "extensions": {"bazaar": BAZAAR_DOSSIER}}
+        terms_b64_v1 = base64.b64encode(json.dumps(terms_v1).encode()).decode()
+        self.send_json(402, body, {
+            "PAYMENT-REQUIRED": terms_b64_v2,
+            "X-PAYMENT-REQUIRED": terms_b64_v1,
+        })
+
+    def serve_paid_dossier(self, domain, version, payment_b64):
+        """Settle a signed x402 payment for /dossier and return the dossier."""
+        if not SALES_ENABLED:
+            return self.send_json(402, {"error": "payment_required",
+                                        "detail": "sales_paused"})
+        resource = f"{base_url(self)}/dossier?domain={domain}"
+        req = x402_requirements(version, resource, DOSSIER_AMOUNT, DOSSIER_DESC, BAZAAR_DOSSIER)
+        ok, info = settle_x402_payment(version, payment_b64, req)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified",
+                                        "detail": info,
+                                        "retry_with": "X-PAYMENT (v1) or PAYMENT-SIGNATURE (v2)"})
+        tx_hash, payer = info["tx_hash"], info["payer"]
+        result = dossier(domain)
+        log_sale("dossier", {"method": "x402", "domain": domain, "tx_hash": tx_hash,
+                                  "sender": payer or "unknown",
+                                  "amount_usd": DOSSIER_PRICE_USD,
+                                  "signals": result["signals"],
+                                  "replay": info.get("replay", False)})
+        resp_header = ("X-PAYMENT-RESPONSE" if version == 1 else "PAYMENT-RESPONSE")
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "dossier",
+            "tx_hash": tx_hash,
+            "price_usd": DOSSIER_PRICE_USD,
+            **result,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Composite dossier: RDAP + DNS (rdap.org, Cloudflare DoH), tech-stack fingerprinting and a live TLS handshake with the domain, email patterns + MX via Cloudflare DoH.",
+        }, {resp_header: x402_settlement_response_header(version, tx_hash, payer)})
+
+    def fulfill_dossier(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length) or b"{}")
+        except Exception:
+            return self.send_json(400, {"error": "bad_json"})
+        domain = str(payload.get("domain", "")).strip()
+        tx_hash = str(payload.get("tx_hash", ""))
+        if not domain:
+            return self.send_json(400, {"error": "missing_domain"})
+        ok, detail = verify_dossier_payment(tx_hash)
+        if not ok:
+            return self.send_json(402, {"error": "payment_not_verified", "detail": detail,
+                                        "pay": dossier_paywall_body(self, domain)["how_to_pay"]})
+        sender = detail.get("sender", "unknown") if isinstance(detail, dict) else "unknown"
+        result = dossier(domain)
+        log_sale("dossier", {"method": "manual", "domain": domain,
+                                  "tx_hash": tx_hash.lower(), "sender": sender,
+                                  "amount_usd": DOSSIER_PRICE_USD,
+                                  "signals": result["signals"]})
+        return self.send_json(200, {
+            "receipt": "ok",
+            "service": "dossier",
+            "tx_hash": tx_hash.lower(),
+            "price_usd": DOSSIER_PRICE_USD,
+            **result,
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "note": "Composite dossier: RDAP + DNS (rdap.org, Cloudflare DoH), tech-stack fingerprinting and a live TLS handshake with the domain, email patterns + MX via Cloudflare DoH.",
         })
 
     def headers_paywall(self, domain):
@@ -5004,6 +5260,8 @@ x402 (USDC on Base, eip155:8453). Per-call pricing below; lead packs $0.01 flat
   address, socials from the company's own site ($0.02 USDC).
 - GET /mail-provider?domain=<domain> — mailbox host + gateway from MX records
   ($0.01 USDC).
+- GET /dossier?domain=<domain> — composite domain dossier: domain intel +
+  tech stack + email patterns + SSL check fused into one call ($0.05 USDC).
 
 ## Lead packs
 - scout-pack-25: 25 leads, $0.01 USDC — delivered instantly as JSON after payment.

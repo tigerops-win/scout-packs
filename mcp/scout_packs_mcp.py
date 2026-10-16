@@ -453,6 +453,22 @@ def domain_intel(domain: str) -> str:
 
 
 @mcp.tool()
+def dossier(domain: str) -> str:
+    """Company enrichment from domain — lead data: composite domain dossier.
+    RDAP registration + DNS infrastructure signals, tech-stack detection,
+    likely corporate email patterns + MX verification, and SSL/TLS certificate
+    health for one domain, fused into a single response with an aggregated
+    signals list. $0.05 USDC per call.
+    Returns the x402 payment requirements; your agent's wallet executes the payment.
+    Example: dossier(domain="acme.com")"""
+    return _x402_instructions(
+        "Composite domain dossier", "/dossier", "/fulfill-dossier",
+        "domain", domain,
+        "Receive the composite dossier: domain intel, tech stack, email patterns, and SSL check in one response.",
+        "dossier")
+
+
+@mcp.tool()
 def packsize(title: str, price: str = "") -> str:
     """Pack-size resolver: parse a product title (and optional package price)
     into pack count, unit size and unit price. $0.02 USDC per call.
