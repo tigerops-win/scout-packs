@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 data/
+telemetry/store/
 packs/
 .env
 dist/

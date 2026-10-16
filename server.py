@@ -20,6 +20,7 @@ Run:  SCOUTPACKS_RECEIVING_ADDRESS=0x... ./run.sh
 
 import base64
 import hashlib
+import hmac
 import html as html_lib
 import json
 import os
@@ -445,6 +446,15 @@ NETWORK_V1 = "base"
 NETWORK_V2 = NETWORK  # "eip155:8453"
 X402_SETTLED_PATH = os.path.join(BASE_DIR, "data", "x402_settled.json")
 
+# ------------------------------------------------------------ ops ledger read
+# GET /ops/ledger — authenticated read of the sales ledger state (telemetry
+# mirror, telemetry/SPEC.md). Token from env SCOUTPACKS_OPS_TOKEN (the same
+# env-config convention as SCOUTPACKS_RECEIVING_ADDRESS; the raw token lives
+# only in env / a 600-perm file client-side, never in code). While the env
+# var is unset the route is DISABLED and answers 404 like an unknown path —
+# fail closed, the ledger's existence is not advertised.
+OPS_TOKEN = os.environ.get("SCOUTPACKS_OPS_TOKEN", "").strip()
+
 def load_settled():
     try:
         with open(X402_SETTLED_PATH) as f:
@@ -568,6 +578,70 @@ def log_sale(kind, record):
             f.write(json.dumps(record) + "\n")
     except Exception:
         pass
+
+def read_ledger_snapshot(since=None):
+    """Assemble the full sales-ledger state for GET /ops/ledger.
+
+    Read-only. Scans data/ for *_sales.jsonl files (kind = filename minus
+    the suffix), parses each line; an unparseable line is carried verbatim
+    as {"_raw": ..., "_parse_error": True} and counted. When `since` (an ISO
+    ts string) is given, sales records with a parseable ts <= since are
+    dropped; records without a parseable ts are always kept (they cannot be
+    proven old). settled/redeemed are returned in full regardless.
+    """
+    data_dir = os.path.join(BASE_DIR, "data")
+    sales, per_kind, unparseable = {}, {}, 0
+    try:
+        names = sorted(os.listdir(data_dir))
+    except Exception:
+        names = []
+    for name in names:
+        if not name.endswith("_sales.jsonl"):
+            continue
+        kind = name[: -len("_sales.jsonl")]
+        records = []
+        try:
+            with open(os.path.join(data_dir, name)) as f:
+                lines = f.read().splitlines()
+        except Exception:
+            lines = []
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+                if not isinstance(rec, dict):
+                    raise ValueError("not an object")
+            except Exception:
+                rec = {"_raw": line, "_parse_error": True}
+                unparseable += 1
+            if since and isinstance(rec.get("ts"), str) and rec["ts"] <= since:
+                continue
+            records.append(rec)
+        if records:
+            sales[kind] = records
+            per_kind[kind] = len(records)
+    settled = load_settled()
+    try:
+        with open(REDEEMED_PATH) as f:
+            redeemed = json.load(f)
+            if not isinstance(redeemed, list):
+                redeemed = []
+    except Exception:
+        redeemed = []
+    return {
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "sales": sales,
+        "settled": settled,
+        "redeemed": redeemed,
+        "counts": {
+            "sales_total": sum(per_kind.values()),
+            "per_kind": per_kind,
+            "settled": len(settled),
+            "redeemed": len(redeemed),
+            "unparseable_lines": unparseable,
+        },
+    }
 
 def blockscout_tx(tx_hash):
     return fetch_json(f"{BLOCKSCOUT}/transactions/{tx_hash}")
@@ -3394,6 +3468,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.landing()
             if path == "/health":
                 return self.send_json(200, {"ok": True, "sales_enabled": SALES_ENABLED})
+            if path == "/ops/ledger":
+                return self.ops_ledger()
             if path == "/sample":
                 return self.send_json(200, sample_record())
             if path == "/demo":
@@ -3820,6 +3896,22 @@ table.eps td.d{{color:var(--muted)}}
 </body>
 </html>"""
         self.send_text(200, html, "text/html; charset=utf-8")
+    def ops_ledger(self):
+        """GET /ops/ledger — authenticated ledger read for the telemetry
+        mirror (telemetry/SPEC.md). Disabled (404) unless SCOUTPACKS_OPS_TOKEN
+        is set; Bearer token compared in constant time. Never enumerated in
+        /catalog, /.well-known/x402, openapi, or LLMS_TXT."""
+        if not OPS_TOKEN:
+            return self.send_json(404, {"error": "not_found"})
+        auth = self.headers.get("Authorization", "")
+        token = auth[len("Bearer "):].strip() if auth.startswith("Bearer ") else ""
+        if not token or not hmac.compare_digest(token, OPS_TOKEN):
+            return self.send_json(401, {"error": "unauthorized"})
+        qs = urlparse(self.path).query
+        params = dict(p.split("=", 1) for p in qs.split("&") if "=" in p)
+        since = unquote_plus(params.get("since", "")).strip() or None
+        return self.send_json(200, read_ledger_snapshot(since=since))
+
     def catalog(self):
         return {"seller": "Tiger Operations",
                 "packs": {f"scout-pack-{s}": {"leads": p["count"], "price_usd": p["price_usd"],
