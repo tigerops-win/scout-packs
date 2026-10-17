@@ -16,6 +16,14 @@ Per-lead enrichment: `GET /lookup?query=<company or domain>` — 402 paywall,
 **$0.01 USDC**, `POST /fulfill-lookup` returns one verified business email +
 source URL + provenance.
 
+Composite dossier: `GET /dossier?domain=<domain>` — 402 paywall,
+**$0.05 USDC**, `POST /fulfill-dossier` returns a composite domain dossier:
+RDAP registration + DNS infrastructure signals, tech-stack detection,
+likely corporate email patterns + MX verification, and SSL/TLS certificate
+health for one domain, fused into a single response with an aggregated
+signals list — the `/domain-intel`, `/tech-stack`, `/email-pattern`, and
+`/ssl-check` results in one call instead of four separate calls.
+
 Each lead: `company_name`, `city_state`, `category`, `contact_email` (verified business email), `source_url`.
 
 ## Endpoints
@@ -29,6 +37,8 @@ Each lead: `company_name`, `city_state`, `category`, `contact_email` (verified b
 - `GET /lookup?query=<company or domain>` — `402` with payment terms ($0.01 USDC); no match → `404`
 - `POST /fulfill` — `{"tx_hash":"0x...","pack":"25","deliver_to":"..."}`
 - `POST /fulfill-lookup` — `{"tx_hash":"0x...","query":"<company>"}`
+- `GET /dossier?domain=<domain>` — `402` with payment terms ($0.05 USDC); composite domain dossier: domain intel + tech stack + email patterns + SSL check fused into one call
+- `POST /fulfill-dossier` — `{"tx_hash":"0x...","domain":"<domain>"}`
 - `GET /skill.md` — agent skill file for the lead lookup (markdown)
 - `/mcp` — MCP streamable-HTTP endpoint (proxied to the sibling MCP server when `MCP_PROXY_PORT` is set)
 

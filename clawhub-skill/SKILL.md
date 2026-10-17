@@ -1,7 +1,7 @@
 ---
 name: scout-packs
 description: Pay $0.01 USDC on Base per call to enrich any company with a verified B2B contact email — no API key, no account, no subscription. Real published emails with source URLs. Use when prospecting, enriching leads, or researching outreach targets.
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Scout Packs — Verified B2B Lead Data, Pay Per Call
@@ -84,6 +84,27 @@ The response is the verified contact:
 
 Transaction hashes are single-use and replay-protected: one `tx_hash`
 redeems one lookup. Do not reuse transaction hashes.
+
+## Composite dossier — `/dossier` ($0.05)
+
+New in v1.0.1. Scout Packs now exposes 14 paid services in total; the
+newest is the composite dossier:
+
+- `GET /dossier?domain=<domain>` — **$0.05 USDC on Base** — composite domain dossier: RDAP registration + DNS infrastructure signals, tech-stack detection, likely corporate email patterns + MX verification, and SSL/TLS certificate health for one domain, fused into a single response with an aggregated signals list.
+
+Same x402 flow as the lookup: an unpaid request returns HTTP 402 with the
+exact payment terms (amount `50000` base units). Pay from a wallet you
+control, then redeem:
+
+```bash
+curl -s -X POST https://scout-packs-production.up.railway.app/fulfill-dossier \
+  -H 'content-type: application/json' \
+  -d '{"tx_hash": "0xYOUR_TX_HASH", "domain": "acme.com"}'
+```
+
+Use it when vetting a company or domain and you need its full registration,
+infrastructure, technology, email, and certificate picture in one call
+instead of four separate calls. Full service list: `GET /catalog`.
 
 ## Discovery (free, machine-readable)
 
