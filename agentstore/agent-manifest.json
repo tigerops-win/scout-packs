@@ -2,7 +2,7 @@
   "agent_id": "tiger-operations.scout-packs.mcp",
   "name": "Scout Packs",
   "type": "open",
-  "description": "Free Claude Code plugin for Scout Packs, Tiger Operations' pay-per-call B2B data API. 15 MCP tools: verified lead email lookup, email deliverability scoring, tech-stack detection, domain intel, SSL/DNS/subdomain recon, repo health. Plugin installs free; each data call costs $0.01-$0.03 USDC on Base via x402 (402 -> sign -> retry). No account, no API key.",
+  "description": "Free Claude Code plugin for Scout Packs, Tiger Operations' pay-per-call B2B data API. 16 MCP tools: verified lead email lookup, email deliverability scoring, tech-stack detection, domain intel, SSL/DNS/subdomain recon, repo health. Plugin installs free; each data call costs $0.01-$0.05 USDC on Base via x402 (402 -> sign -> retry). No account, no API key.",
   "version": "1.0.0",
   "publisher": {
     "publisher_id": "tiger-operations",
@@ -17,7 +17,7 @@
     "agent_wrapper": {
       "format": "markdown",
       "entrypoint": "agent-wrapper.md",
-      "checksum": "sha256:aa3e2c5b770d44a6b3df4b30b246f353b16651dbd485068034e6d272f82b183a"
+      "checksum": "sha256:73921a4db665cfd008ebe71491c35deb29e129b02f23e619126d21a2c2e14464"
     },
     "gateway_routes": [
       {
@@ -38,6 +38,7 @@
           "repo_health",
           "deliverability",
           "domain_intel",
+          "dossier",
           "packsize"
         ],
         "auth": {
@@ -63,5 +64,5 @@
     "agent-commerce",
     "outreach"
   ],
-  "updated_at": "2026-10-12T12:00:00Z"
+  "updated_at": "2026-10-16T12:00:00Z"
 }

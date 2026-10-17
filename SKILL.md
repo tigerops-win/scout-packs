@@ -13,6 +13,10 @@ Plus per-lead enrichment: `GET /lookup?query=<company or domain>` —
 **$0.01 USDC** per verified business email lookup (`POST /fulfill-lookup`
 to redeem).
 
+Composite dossier: `GET /dossier?domain=<domain>` — **$0.05 USDC** for
+domain intel + tech stack + email patterns + SSL check fused into one
+response (`POST /fulfill-dossier` to redeem).
+
 Every lead: company name, contact name, title, **published business email**,
 source URL where it was found. Machine-readable JSON. If an email isn't
 published, it isn't in the pack. Nothing guessed, nothing pattern-matched.

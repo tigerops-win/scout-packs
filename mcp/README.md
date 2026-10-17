@@ -77,6 +77,17 @@ Safety: if the endpoint reports `sales_enabled=false`, the tool says SALES
 PAUSED and instructs the agent NOT to send funds. The tool never moves funds
 and never holds private keys.
 
+### `dossier` — arguments: `domain` (e.g. `"acme.com"`)
+
+Composite domain dossier — **$0.05 USDC** per call: domain intel (RDAP
+registration + DNS infrastructure signals), tech-stack detection, likely
+corporate email patterns + MX verification, and SSL/TLS certificate health
+for one domain, fused into a single response with an aggregated signals
+list. Returns the exact x402 payment requirements for `GET /dossier`; the
+buying agent's own wallet executes the payment (manual-tx fallback:
+`POST /fulfill-dossier`). The tool never moves funds and never holds
+private keys.
+
 ## Worked example (MCP Inspector)
 
 ```bash

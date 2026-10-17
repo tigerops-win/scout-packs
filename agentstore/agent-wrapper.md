@@ -13,6 +13,7 @@ The plugin installs free; each data call is a pay-per-call x402 transaction.
 - `tech_stack` — tech-stack detection from headers + markup — **$0.01**
 - `email_pattern` — likely corporate email patterns + MX check — **$0.01**
 - `ssl_check` — SSL/TLS details + risk flags — **$0.01**
+- `dossier` — composite domain dossier: domain intel + tech stack + email patterns + SSL check fused into one call — **$0.05**
 - `headers` — security headers audit, A–F grade — **$0.01**
 - `dns` — full DNS record dump (A, AAAA, MX, TXT, NS, CNAME) — **$0.01**
 - `subdomains` — CT-log subdomain footprint, intent-classified — **$0.02**
